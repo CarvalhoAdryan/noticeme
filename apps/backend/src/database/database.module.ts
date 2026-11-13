@@ -18,8 +18,11 @@ export const PG_POOL = 'PG_POOL';
           logger.warn('DATABASE_URL não definida; Pool criado sem connectionString.');
         }
 
+        const isSupabase = Boolean(connectionString?.includes('supabase.com'));
+
         const pool = new Pool({
           connectionString,
+          ssl: isSupabase ? { rejectUnauthorized: false } : undefined,
         });
 
         pool.on('error', (err) => {
