@@ -9,6 +9,7 @@ export interface FetchArticlesParams {
   limit?: number;
   cursor?: string | null;
   category?: NewsCategory | null;
+  categories?: NewsCategory[];
   q?: string;
   onlyFollowed?: boolean;
 }
@@ -26,6 +27,9 @@ export async function fetchArticles(
   }
   if (params.category) {
     searchParams.set('category', params.category);
+  }
+  if (params.categories && params.categories.length > 0) {
+    searchParams.set('categories', params.categories.join(','));
   }
   if (params.q && params.q.trim().length > 0) {
     searchParams.set('q', params.q.trim());
