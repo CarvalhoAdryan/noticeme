@@ -1,5 +1,12 @@
 export type ThemePreference = 'system' | 'light' | 'dark';
 
+export type ThemePresetId =
+  | 'editorial'
+  | 'ocean'
+  | 'forest'
+  | 'amber'
+  | 'indigo';
+
 export interface AppThemeColors {
   background: string;
   surface: string;
@@ -11,4 +18,12 @@ export interface AppThemeColors {
   border: string;
   danger: string;
   success: string;
+}
+
+export interface ThemePresetDefinition {
+  id: ThemePresetId;
+  label: string;
+  swatch: string;
+  light: AppThemeColors;
+  dark: AppThemeColors;
 }

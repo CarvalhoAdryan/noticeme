@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  type LayoutChangeEvent,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -10,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArticleRow } from '../../src/components/ArticleRow';
+import { ArticleReelCard } from '../../src/components/ArticleReelCard';
 import { StateView } from '../../src/components/StateView';
 import { useAppTheme } from '../../src/hooks/useAppTheme';
 import { fetchArticles } from '../../src/services/articles.service';
@@ -32,6 +33,7 @@ export default function HomeScreen() {
   const markAsRead = useBookmarksStore((state) => state.markAsRead);
 
   const [scope, setScope] = useState<FeedScope>('all');
+  const [reelHeight, setReelHeight] = useState(0);
   const [articles, setArticles] = useState<ArticleFeedItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -50,20 +52,25 @@ export default function HomeScreen() {
 
       try {
         const useServerFollowed = Boolean(user && scope === 'followed');
+        const guestFollowed =
+          !user && scope === 'followed' ? activeCategories : undefined;
+
+        if (!user && scope === 'followed' && activeCategories.length === 0) {
+          setArticles([]);
+          setNextCursor(null);
+          setHasMore(false);
+          return;
+        }
+
         const response = await fetchArticles({
           limit: 20,
           cursor: opts.reset ? null : opts.cursor,
           onlyFollowed: useServerFollowed,
+          categories: guestFollowed,
         });
 
         syncFromFeed(response.data);
-
-        let items = response.data;
-        if (!user && scope === 'followed' && activeCategories.length > 0) {
-          items = items.filter((item) =>
-            item.categories.some((c) => activeCategories.includes(c.slug)),
-          );
-        }
+        const items = response.data;
 
         setArticles((prev) => {
           if (opts.reset) return items;
@@ -120,6 +127,13 @@ export default function HomeScreen() {
     },
     [toggleBookmark, user],
   );
+
+  const handleFeedLayout = useCallback((event: LayoutChangeEvent) => {
+    const nextHeight = Math.floor(event.nativeEvent.layout.height);
+    if (nextHeight > 0) {
+      setReelHeight((prev) => (prev !== nextHeight ? nextHeight : prev));
+    }
+  }, []);
 
   const todayFormatted = new Intl.DateTimeFormat('pt-BR', {
     weekday: 'long',
@@ -209,78 +223,95 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {isLoading ? (
-        <StateView
-          mode="loading"
-          title="Atualizando manchetes"
-          description="Buscando as últimas publicações das fontes verificadas."
-        />
-      ) : error && articles.length === 0 ? (
-        <StateView
-          mode="error"
-          title="Não foi possível carregar o feed"
-          description={error}
-          actionLabel="Tentar novamente"
-          onAction={() => {
-            setIsLoading(true);
-            void loadFeed({ reset: true });
-          }}
-        />
-      ) : articles.length === 0 ? (
-        <StateView
-          mode="empty"
-          title={
-            scope === 'followed'
-              ? 'Nenhuma notícia nas editorias seguidas'
-              : 'Nenhuma notícia publicada ainda'
-          }
-          description={
-            scope === 'followed'
-              ? 'Selecione mais editorias na aba Perfil ou alterne para Últimas.'
-              : 'Execute a coleta de feeds ou aguarde a próxima atualização.'
-          }
-          actionLabel={scope === 'followed' ? 'Ver todas as notícias' : 'Atualizar'}
-          onAction={() => {
-            if (scope === 'followed') {
-              setScope('all');
-            } else {
+      <View style={styles.reelViewport} onLayout={handleFeedLayout}>
+        {isLoading ? (
+          <StateView
+            mode="loading"
+            title="Atualizando manchetes"
+            description="Buscando as últimas publicações das fontes verificadas."
+          />
+        ) : error && articles.length === 0 ? (
+          <StateView
+            mode="error"
+            title="Não foi possível carregar o feed"
+            description={error}
+            actionLabel="Tentar novamente"
+            onAction={() => {
               setIsLoading(true);
               void loadFeed({ reset: true });
+            }}
+          />
+        ) : articles.length === 0 ? (
+          <StateView
+            mode="empty"
+            title={
+              scope === 'followed'
+                ? 'Nenhuma notícia nas editorias seguidas'
+                : 'Nenhuma notícia publicada ainda'
             }
-          }}
-        />
-      ) : (
-        <FlatList
-          data={articles}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <ArticleRow
-              article={item}
-              isFavorite={Boolean(favoriteIds[item.id])}
-              isRead={Boolean(readIds[item.id])}
-              onPress={handleOpenArticle}
-              onToggleFavorite={handleToggleFavorite}
-            />
-          )}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={handleRefresh}
-              tintColor={colors.primary}
-            />
-          }
-          onEndReached={handleEndReached}
-          onEndReachedThreshold={0.4}
-          ListFooterComponent={
-            isLoadingMore ? (
-              <View style={styles.footerLoader}>
-                <ActivityIndicator size="small" color={colors.primary} />
-              </View>
-            ) : undefined
-          }
-          contentContainerStyle={styles.listContent}
-        />
-      )}
+            description={
+              scope === 'followed'
+                ? 'Selecione mais editorias na aba Perfil ou alterne para Últimas.'
+                : 'Execute a coleta de feeds ou aguarde a próxima atualização.'
+            }
+            actionLabel={
+              scope === 'followed' ? 'Ver todas as notícias' : 'Atualizar'
+            }
+            onAction={() => {
+              if (scope === 'followed') {
+                setScope('all');
+              } else {
+                setIsLoading(true);
+                void loadFeed({ reset: true });
+              }
+            }}
+          />
+        ) : reelHeight > 0 ? (
+          <FlatList
+            data={articles}
+            keyExtractor={(item) => item.id}
+            pagingEnabled
+            decelerationRate="fast"
+            snapToInterval={reelHeight}
+            snapToAlignment="start"
+            disableIntervalMomentum
+            showsVerticalScrollIndicator={false}
+            getItemLayout={(_data, index) => ({
+              length: reelHeight,
+              offset: reelHeight * index,
+              index,
+            })}
+            renderItem={({ item, index }) => (
+              <ArticleReelCard
+                article={item}
+                height={reelHeight}
+                index={index}
+                totalCount={articles.length}
+                isFavorite={Boolean(favoriteIds[item.id])}
+                isRead={Boolean(readIds[item.id])}
+                onReadMore={handleOpenArticle}
+                onToggleFavorite={handleToggleFavorite}
+              />
+            )}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                tintColor={colors.primary}
+              />
+            }
+            onEndReached={handleEndReached}
+            onEndReachedThreshold={0.4}
+            ListFooterComponent={
+              isLoadingMore ? (
+                <View style={styles.footerLoader}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                </View>
+              ) : undefined
+            }
+          />
+        ) : null}
+      </View>
     </SafeAreaView>
   );
 }
@@ -329,8 +360,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  listContent: {
-    paddingBottom: 24,
+  reelViewport: {
+    flex: 1,
   },
   footerLoader: {
     paddingVertical: 20,

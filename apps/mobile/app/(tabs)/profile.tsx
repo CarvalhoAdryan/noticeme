@@ -16,7 +16,7 @@ import { useAppTheme } from '../../src/hooks/useAppTheme';
 import { useAuthStore } from '../../src/store/auth.store';
 import { useThemeStore } from '../../src/store/theme.store';
 import type { ThemePreference } from '../../src/types';
-import { ALL_CATEGORIES, CATEGORY_LABELS } from '../../src/utils';
+import { ALL_CATEGORIES, CATEGORY_LABELS, THEME_PRESET_LIST } from '../../src/utils';
 
 const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
   { value: 'system', label: 'Sistema' },
@@ -25,9 +25,10 @@ const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
 ];
 
 export default function ProfileScreen() {
-  const { colors } = useAppTheme();
+  const { colors, preset } = useAppTheme();
   const preference = useThemeStore((state) => state.preference);
   const setPreference = useThemeStore((state) => state.setPreference);
+  const setPreset = useThemeStore((state) => state.setPreset);
 
   const user = useAuthStore((state) => state.user);
   const guestCategories = useAuthStore((state) => state.guestCategories);
@@ -487,6 +488,53 @@ export default function ProfileScreen() {
                 );
               })}
             </View>
+
+            <Text style={[styles.presetLabel, { color: colors.text }]}>
+              Paleta de cores
+            </Text>
+
+            <View style={styles.presetGrid}>
+              {THEME_PRESET_LIST.map((item) => {
+                const isSelected = preset === item.id;
+                return (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => setPreset(item.id)}
+                    accessibilityRole="radio"
+                    accessibilityLabel={`Paleta ${item.label}`}
+                    accessibilityState={{ checked: isSelected }}
+                    style={[
+                      styles.presetItem,
+                      {
+                        backgroundColor: isSelected
+                          ? colors.primarySoft
+                          : colors.background,
+                        borderColor: isSelected
+                          ? colors.primary
+                          : colors.border,
+                      },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.presetSwatch,
+                        { backgroundColor: item.swatch },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.presetItemText,
+                        {
+                          color: isSelected ? colors.primary : colors.text,
+                        },
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -669,6 +717,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   themeOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  presetLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+  presetGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  presetItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 44,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+  },
+  presetSwatch: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+  },
+  presetItemText: {
     fontSize: 14,
     fontWeight: '600',
   },
