@@ -25,3 +25,4 @@ export class OptionalSupabaseAuthGuard implements CanActivate {
     return true;
   }
 }
+

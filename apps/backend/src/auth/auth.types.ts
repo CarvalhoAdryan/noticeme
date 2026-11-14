@@ -13,3 +13,4 @@ export interface SupabaseJwtPayload {
   iss?: string;
   aud?: string | string[];
 }
+

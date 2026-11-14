@@ -72,3 +72,4 @@ void describe('SupabaseJwtService', () => {
     await assert.rejects(() => jwtService.verifyToken(token), UnauthorizedException);
   });
 });
+

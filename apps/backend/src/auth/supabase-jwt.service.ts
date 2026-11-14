@@ -21,6 +21,32 @@ export class SupabaseJwtService {
 
   constructor(private readonly configService: ConfigService) {}
 
+  signToken(user: { id: string; email: string }): string {
+    const secret = this.getEffectiveHs256Secret();
+    const now = Math.floor(Date.now() / 1000);
+    const header = Buffer.from(
+      JSON.stringify({ alg: 'HS256', typ: 'JWT' }),
+      'utf8',
+    ).toString('base64url');
+    const payload = Buffer.from(
+      JSON.stringify({
+        sub: user.id,
+        email: user.email,
+        role: 'authenticated',
+        iat: now,
+        exp: now + 7 * 24 * 60 * 60,
+      }),
+      'utf8',
+    ).toString('base64url');
+
+    const signature = crypto
+      .createHmac('sha256', secret)
+      .update(`${header}.${payload}`)
+      .digest('base64url');
+
+    return `${header}.${payload}.${signature}`;
+  }
+
   async verifyToken(token: string): Promise<AuthenticatedUser> {
     const parts = token.trim().split('.');
     if (parts.length !== 3) {
@@ -67,11 +93,18 @@ export class SupabaseJwtService {
     };
   }
 
-  private verifyHs256(signingInput: string, signatureBuffer: Buffer): void {
-    const secret = this.configService.get<string>('SUPABASE_JWT_SECRET');
-    if (!secret) {
-      throw new UnauthorizedException('SUPABASE_JWT_SECRET não configurado no servidor.');
+  private getEffectiveHs256Secret(): string {
+    const explicitSecret = this.configService.get<string>('SUPABASE_JWT_SECRET');
+    if (explicitSecret && explicitSecret.trim().length > 0) {
+      return explicitSecret.trim();
     }
+
+    const dbUrl = this.configService.get<string>('DATABASE_URL') ?? 'dailybrief-local-secret';
+    return crypto.createHash('sha256').update(dbUrl).digest('hex');
+  }
+
+  private verifyHs256(signingInput: string, signatureBuffer: Buffer): void {
+    const secret = this.getEffectiveHs256Secret();
 
     const expectedSignature = crypto
       .createHmac('sha256', secret)

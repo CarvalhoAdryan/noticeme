@@ -33,3 +33,4 @@ export class SupabaseAuthGuard implements CanActivate {
     return true;
   }
 }
+
