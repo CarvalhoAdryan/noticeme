@@ -1,4 +1,4 @@
-import type { ArticleFeedItem } from '@dailybrief/shared';
+import type { ArticleFeedItem, DailyQuoteResponse } from '@dailybrief/shared';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,9 +13,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArticleReelCard } from '../../src/components/ArticleReelCard';
+import { DailyQuoteCard } from '../../src/components/DailyQuoteCard';
 import { StateView } from '../../src/components/StateView';
 import { useAppTheme } from '../../src/hooks/useAppTheme';
 import { fetchArticles } from '../../src/services/articles.service';
+import {
+  getCachedDailyQuote,
+  syncDailyQuote,
+} from '../../src/services/dailyQuote.service';
 import { useAuthStore } from '../../src/store/auth.store';
 import { useBookmarksStore } from '../../src/store/bookmarks.store';
 import {
@@ -47,6 +52,21 @@ export default function HomeScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dailyQuote, setDailyQuote] = useState<DailyQuoteResponse | null>(() =>
+    getCachedDailyQuote(),
+  );
+
+  useEffect(() => {
+    let active = true;
+    void syncDailyQuote().then((quote) => {
+      if (active && quote) {
+        setDailyQuote(quote);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const activeCategories = user ? user.categories : guestCategories;
 
@@ -271,6 +291,8 @@ export default function HomeScreen() {
           </ScrollView>
         ) : null}
       </View>
+
+      {dailyQuote ? <DailyQuoteCard quote={dailyQuote} /> : null}
 
       <View style={styles.reelViewport} onLayout={handleFeedLayout}>
         {isLoading ? (
