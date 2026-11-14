@@ -5,12 +5,14 @@ import { useEffect } from 'react';
 import { useAppTheme } from '../src/hooks/useAppTheme';
 import { warmUpApi } from '../src/services/warmup';
 import { useAuthStore } from '../src/store/auth.store';
+import { useThemeStore } from '../src/store/theme.store';
 
 export default function RootLayout() {
   const { isDark } = useAppTheme();
 
   useEffect(() => {
     warmUpApi();
+    void useThemeStore.getState().hydrateTheme();
     void useAuthStore.getState().hydrateSession();
   }, []);
 
