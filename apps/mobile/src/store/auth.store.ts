@@ -1,7 +1,13 @@
 import type { NewsCategory, UserProfile } from '@dailybrief/shared';
 import { create } from 'zustand';
-import { setApiAuthToken } from '../services/api';
+import { ApiError, setApiAuthToken } from '../services/api';
 import {
+  clearStoredAuthToken,
+  getStoredAuthToken,
+  setStoredAuthToken,
+} from '../services/tokenStorage';
+import {
+  fetchProfileApi,
   loginApi,
   registerApi,
   updateProfileApi,
@@ -13,8 +19,10 @@ interface AuthState {
   user: UserProfile | null;
   guestCategories: NewsCategory[];
   isSubmitting: boolean;
+  isHydrating: boolean;
   error: string | null;
   clearError: () => void;
+  hydrateSession: () => Promise<void>;
   login: (email: string, password: string) => Promise<boolean>;
   register: (
     email: string,
@@ -31,15 +39,40 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   guestCategories: ['geral', 'tecnologia', 'economia'],
   isSubmitting: false,
+  isHydrating: false,
   error: null,
 
   clearError: () => set({ error: null }),
+
+  hydrateSession: async () => {
+    if (get().isHydrating || get().token) return;
+    set({ isHydrating: true });
+
+    try {
+      const storedToken = await getStoredAuthToken();
+      if (!storedToken) {
+        set({ isHydrating: false });
+        return;
+      }
+
+      setApiAuthToken(storedToken);
+      const user = await fetchProfileApi();
+      set({ token: storedToken, user, isHydrating: false });
+    } catch (err: unknown) {
+      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+        await clearStoredAuthToken();
+      }
+      setApiAuthToken(null);
+      set({ token: null, user: null, isHydrating: false });
+    }
+  },
 
   login: async (email, password) => {
     set({ isSubmitting: true, error: null });
     try {
       const session = await loginApi(email, password);
       setApiAuthToken(session.accessToken);
+      await setStoredAuthToken(session.accessToken);
       set({
         token: session.accessToken,
         user: session.user,
@@ -59,6 +92,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const session = await registerApi(email, password, displayName);
       setApiAuthToken(session.accessToken);
+      await setStoredAuthToken(session.accessToken);
 
       const { guestCategories } = get();
       let categories = session.user.categories;
@@ -87,6 +121,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: () => {
     setApiAuthToken(null);
+    void clearStoredAuthToken();
     set({ token: null, user: null, error: null });
   },
 

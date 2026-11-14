@@ -4,12 +4,14 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useAppTheme } from '../src/hooks/useAppTheme';
 import { warmUpApi } from '../src/services/warmup';
+import { useAuthStore } from '../src/store/auth.store';
 
 export default function RootLayout() {
   const { isDark } = useAppTheme();
 
   useEffect(() => {
     warmUpApi();
+    void useAuthStore.getState().hydrateSession();
   }, []);
 
   return (
