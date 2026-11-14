@@ -18,6 +18,7 @@ import { StateView } from '../../src/components/StateView';
 import { LoveBackground } from '../../src/components/LoveBackground';
 import { useAppTheme } from '../../src/hooks/useAppTheme';
 import { fetchArticles } from '../../src/services/articles.service';
+import { readCachedFeed, writeCachedFeed } from '../../src/services/feedCache';
 import {
   getCachedDailyQuote,
   syncDailyQuote,
@@ -60,6 +61,13 @@ export default function HomeScreen() {
 
   useEffect(() => {
     let active = true;
+    void readCachedFeed().then((cached) => {
+      if (active && cached.length > 0) {
+        syncFromFeed(cached);
+        setArticles((prev) => (prev.length === 0 ? cached : prev));
+        setIsLoading(false);
+      }
+    });
     void syncDailyQuote().then((quote) => {
       if (active && quote) {
         setDailyQuote(quote);
@@ -68,7 +76,7 @@ export default function HomeScreen() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [syncFromFeed]);
 
   const activeCategories = user ? user.categories : guestCategories;
   const visibleArticles = useMemo(() => {
@@ -106,6 +114,10 @@ export default function HomeScreen() {
 
         syncFromFeed(response.data);
         const items = response.data;
+
+        if (opts.reset && scope === 'all' && items.length > 0) {
+          void writeCachedFeed(items);
+        }
 
         setArticles((prev) => {
           if (opts.reset) return items;

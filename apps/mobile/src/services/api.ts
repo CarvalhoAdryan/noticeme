@@ -1,5 +1,7 @@
 const DEFAULT_API_URL = 'http://localhost:3000';
-const REQUEST_TIMEOUT_MS = 15_000;
+const REQUEST_TIMEOUT_MS = 45_000;
+const RETRY_DELAY_MS = 1_500;
+const RETRYABLE_STATUSES = new Set([0, 408, 502, 503, 504]);
 
 let authToken: string | null = null;
 
@@ -22,25 +24,11 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiRequest<T>(
-  path: string,
-  options: RequestInit = {},
+async function executeSingleRequest<T>(
+  url: string,
+  options: RequestInit,
+  headers: Record<string, string>,
 ): Promise<T> {
-  const url = `${getApiBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`;
-
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-    ...(options.headers as Record<string, string> | undefined),
-  };
-
-  if (options.body && !headers['Content-Type']) {
-    headers['Content-Type'] = 'application/json';
-  }
-
-  if (authToken) {
-    headers.Authorization = `Bearer ${authToken}`;
-  }
-
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
@@ -78,7 +66,10 @@ export async function apiRequest<T>(
       throw err;
     }
     if (err instanceof Error && err.name === 'AbortError') {
-      throw new ApiError(408, 'A conexão demorou mais de 15 segundos. Tente novamente.');
+      throw new ApiError(
+        408,
+        'O servidor demorou para responder. Tente novamente em instantes.',
+      );
     }
     throw new ApiError(
       0,
@@ -86,6 +77,43 @@ export async function apiRequest<T>(
     );
   } finally {
     clearTimeout(timer);
+  }
+}
+
+export async function apiRequest<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const url = `${getApiBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`;
+
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    ...(options.headers as Record<string, string> | undefined),
+  };
+
+  if (options.body && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+
+  const method = (options.method ?? 'GET').toUpperCase();
+  const canRetry = method === 'GET';
+
+  try {
+    return await executeSingleRequest<T>(url, options, headers);
+  } catch (err: unknown) {
+    if (
+      canRetry &&
+      err instanceof ApiError &&
+      RETRYABLE_STATUSES.has(err.status)
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+      return executeSingleRequest<T>(url, options, headers);
+    }
+    throw err;
   }
 }
 
