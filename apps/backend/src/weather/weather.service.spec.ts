@@ -140,4 +140,100 @@ void describe('WeatherService & WMO', () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  void it('usa WeatherAPI quando WEATHER_API_KEY está configurada e faz fallback para Open-Meteo em caso de falha', async () => {
+    const previousKey = process.env.WEATHER_API_KEY;
+    process.env.WEATHER_API_KEY = 'test-weather-api-key';
+    const service = new WeatherService();
+    const originalFetch = globalThis.fetch;
+    const requestedUrls: string[] = [];
+
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const urlStr = typeof input === 'string' ? input : input.toString();
+      requestedUrls.push(urlStr);
+
+      if (urlStr.includes('api.weatherapi.com')) {
+        return new Response(
+          JSON.stringify({
+            location: {
+              tz_id: 'America/Sao_Paulo',
+              localtime: '2026-11-14 15:00',
+            },
+            current: {
+              temp_c: 26.4,
+              feelslike_c: 28.1,
+              humidity: 68,
+              wind_kph: 14.2,
+              is_day: 1,
+              condition: { text: 'Parcialmente nublado', code: 1003 },
+            },
+            forecast: {
+              forecastday: [
+                {
+                  date: '2026-11-14',
+                  day: {
+                    maxtemp_c: 29.2,
+                    mintemp_c: 19.6,
+                    daily_chance_of_rain: 40,
+                    condition: { text: 'Chuva fraca', code: 1063 },
+                  },
+                  astro: { sunrise: '05:15 AM', sunset: '06:28 PM' },
+                  hour: [
+                    {
+                      time: '2026-11-14 15:00',
+                      temp_c: 26.4,
+                      chance_of_rain: 35,
+                    },
+                    {
+                      time: '2026-11-14 16:00',
+                      temp_c: 25.8,
+                      chance_of_rain: 45,
+                    },
+                  ],
+                },
+              ],
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify(buildOpenMeteoSample(27)), {
+        status: 200,
+      });
+    }) as typeof fetch;
+
+    try {
+      const result = await service.getForecast(-23.55, -46.63);
+      assert.equal(requestedUrls.length, 1);
+      assert.ok(requestedUrls[0]?.includes('api.weatherapi.com'));
+      assert.equal(result.current.temperature, 26);
+      assert.equal(result.current.description, 'Parcialmente nublado');
+      assert.equal(result.current.icon, 'partly-sunny-outline');
+      assert.equal(result.hourly.length, 2);
+      assert.equal(result.daily[0]?.sunrise, '2026-11-14T05:15');
+      assert.equal(result.daily[0]?.sunset, '2026-11-14T18:28');
+
+      // Simula falha da WeatherAPI em outra região -> deve cair no fallback Open-Meteo
+      globalThis.fetch = (async (input: RequestInfo | URL) => {
+        const urlStr = typeof input === 'string' ? input : input.toString();
+        if (urlStr.includes('api.weatherapi.com')) {
+          return new Response('rate limit', { status: 429 });
+        }
+        return new Response(JSON.stringify(buildOpenMeteoSample(24)), {
+          status: 200,
+        });
+      }) as typeof fetch;
+
+      const fallbackResult = await service.getForecast(-2.53, -44.3);
+      assert.equal(fallbackResult.current.temperature, 24);
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (previousKey === undefined) {
+        delete process.env.WEATHER_API_KEY;
+      } else {
+        process.env.WEATHER_API_KEY = previousKey;
+      }
+    }
+  });
 });

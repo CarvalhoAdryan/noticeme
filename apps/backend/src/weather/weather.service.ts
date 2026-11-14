@@ -9,7 +9,7 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { mapWmoCode } from './wmo-weather.utils';
+import { mapWeatherApiCode, mapWmoCode } from './wmo-weather.utils';
 
 interface CacheEntry<T> {
   data: T;
@@ -59,8 +59,68 @@ interface OpenMeteoGeocodingPayload {
 
 const OPEN_METEO_FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
 const OPEN_METEO_GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search';
+const WEATHER_API_FORECAST_URL = 'https://api.weatherapi.com/v1/forecast.json';
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 10_000;
+
+interface WeatherApiForecastPayload {
+  location?: {
+    tz_id?: string;
+    localtime?: string;
+  };
+  current?: {
+    temp_c?: number;
+    feelslike_c?: number;
+    humidity?: number;
+    wind_kph?: number;
+    is_day?: number;
+    condition?: {
+      text?: string;
+      code?: number;
+    };
+  };
+  forecast?: {
+    forecastday?: Array<{
+      date?: string;
+      day?: {
+        maxtemp_c?: number;
+        mintemp_c?: number;
+        daily_chance_of_rain?: number;
+        condition?: {
+          text?: string;
+          code?: number;
+        };
+      };
+      astro?: {
+        sunrise?: string;
+        sunset?: string;
+      };
+      hour?: Array<{
+        time?: string;
+        temp_c?: number;
+        chance_of_rain?: number;
+      }>;
+    }>;
+  };
+}
+
+function parseAstroTimeToIso(
+  dateStr: string | undefined,
+  time12h: string | undefined,
+): string | null {
+  if (!dateStr || !time12h) return null;
+  const match = time12h.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+
+  let hours = Number(match[1]);
+  const minutes = match[2];
+  const period = match[3].toUpperCase();
+
+  if (period === 'PM' && hours < 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+
+  return `${dateStr}T${String(hours).padStart(2, '0')}:${minutes}`;
+}
 
 export function buildRegionCacheKey(latitude: number, longitude: number): string {
   // Arredonda para ~1,1 km para compartilhar cache entre usuários da mesma região sem guardar precisão exata
@@ -197,122 +257,34 @@ export class WeatherService {
   ): Promise<WeatherForecastResponse> {
     const roundedLat = Math.round(latitude * 100) / 100;
     const roundedLon = Math.round(longitude * 100) / 100;
+    const weatherApiKey = process.env.WEATHER_API_KEY?.trim();
 
-    const url = new URL(OPEN_METEO_FORECAST_URL);
-    url.searchParams.set('latitude', String(roundedLat));
-    url.searchParams.set('longitude', String(roundedLon));
-    url.searchParams.set(
-      'current',
-      'temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day',
-    );
-    url.searchParams.set('hourly', 'temperature_2m,precipitation_probability');
-    url.searchParams.set(
-      'daily',
-      'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset',
-    );
-    url.searchParams.set('timezone', 'auto');
-    url.searchParams.set('forecast_days', '7');
+    if (weatherApiKey) {
+      try {
+        const normalized = await this.fetchFromWeatherApi(
+          weatherApiKey,
+          roundedLat,
+          roundedLon,
+        );
+        this.forecastCache.set(regionKey, {
+          data: normalized,
+          expiresAt: Date.now() + CACHE_TTL_MS,
+        });
+        return normalized;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.warn(
+          `Falha ao consultar previsão WeatherAPI (${regionKey}), tentando fallback Open-Meteo: ${msg}`,
+        );
+      }
+    }
 
     try {
-      const response = await fetch(url.toString(), {
-        headers: {
-          Accept: 'application/json',
-          'User-Agent': 'NoticeME-Weather/1.0',
-        },
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Open-Meteo retornou HTTP ${response.status}`);
-      }
-
-      const raw = (await response.json()) as OpenMeteoForecastPayload;
-      if (!raw.current || typeof raw.current.temperature_2m !== 'number') {
-        throw new Error('Resposta meteorológica incompleta da Open-Meteo.');
-      }
-
-      const isDay = raw.current.is_day !== 0;
-      const currentCode = raw.current.weather_code ?? 0;
-      const currentWmo = mapWmoCode(currentCode, isDay);
-
-      const hourlyTimes = raw.hourly?.time ?? [];
-      const hourlyTemps = raw.hourly?.temperature_2m ?? [];
-      const hourlyPrecip = raw.hourly?.precipitation_probability ?? [];
-      const currentTime = raw.current.time ?? '';
-
-      const startHourIdx = Math.max(
-        0,
-        hourlyTimes.findIndex((t) => t >= currentTime),
-      );
-      const hourly: WeatherHourlyItem[] = hourlyTimes
-        .slice(startHourIdx, startHourIdx + 12)
-        .map((time, idx) => {
-          const actualIdx = startHourIdx + idx;
-          return {
-            time,
-            temperature: Math.round(hourlyTemps[actualIdx] ?? 0),
-            precipitationProbability: Math.round(hourlyPrecip[actualIdx] ?? 0),
-          };
-        });
-
-      const dailyDates = raw.daily?.time ?? [];
-      const dailyCodes = raw.daily?.weather_code ?? [];
-      const dailyMax = raw.daily?.temperature_2m_max ?? [];
-      const dailyMin = raw.daily?.temperature_2m_min ?? [];
-      const dailyPrecipMax = raw.daily?.precipitation_probability_max ?? [];
-      const dailySunrise = raw.daily?.sunrise ?? [];
-      const dailySunset = raw.daily?.sunset ?? [];
-
-      const daily: WeatherDailyItem[] = dailyDates.map((date, idx) => {
-        const code = dailyCodes[idx] ?? 0;
-        const wmo = mapWmoCode(code, true);
-        return {
-          date,
-          weatherCode: code,
-          description: wmo.description,
-          icon: wmo.icon,
-          tempMax: Math.round(dailyMax[idx] ?? 0),
-          tempMin: Math.round(dailyMin[idx] ?? 0),
-          precipitationProbabilityMax: Math.round(dailyPrecipMax[idx] ?? 0),
-          sunrise: dailySunrise[idx] ?? null,
-          sunset: dailySunset[idx] ?? null,
-        };
-      });
-
-      const normalized: WeatherForecastResponse = {
-        location: {
-          latitude: roundedLat,
-          longitude: roundedLon,
-          timezone: raw.timezone ?? 'America/Sao_Paulo',
-        },
-        current: {
-          temperature: Math.round(raw.current.temperature_2m),
-          apparentTemperature: Math.round(
-            raw.current.apparent_temperature ?? raw.current.temperature_2m,
-          ),
-          humidity: Math.round(raw.current.relative_humidity_2m ?? 0),
-          windSpeed: Math.round(raw.current.wind_speed_10m ?? 0),
-          precipitationProbability:
-            hourly[0]?.precipitationProbability ??
-            daily[0]?.precipitationProbabilityMax ??
-            null,
-          weatherCode: currentCode,
-          description: currentWmo.description,
-          icon: currentWmo.icon,
-          isDay,
-        },
-        hourly,
-        daily,
-        fetchedAt: new Date().toISOString(),
-        fromCache: false,
-        isStale: false,
-      };
-
+      const normalized = await this.fetchFromOpenMeteo(roundedLat, roundedLon);
       this.forecastCache.set(regionKey, {
         data: normalized,
         expiresAt: Date.now() + CACHE_TTL_MS,
       });
-
       return normalized;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -332,5 +304,224 @@ export class WeatherService {
         'Não foi possível obter os dados meteorológicos no momento.',
       );
     }
+  }
+
+  private async fetchFromWeatherApi(
+    apiKey: string,
+    roundedLat: number,
+    roundedLon: number,
+  ): Promise<WeatherForecastResponse> {
+    const url = new URL(WEATHER_API_FORECAST_URL);
+    url.searchParams.set('key', apiKey);
+    url.searchParams.set('q', `${roundedLat},${roundedLon}`);
+    url.searchParams.set('days', '7');
+    url.searchParams.set('lang', 'pt');
+    url.searchParams.set('aqi', 'no');
+    url.searchParams.set('alerts', 'no');
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'NoticeME-Weather/1.0',
+      },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      throw new Error(`WeatherAPI retornou HTTP ${response.status}`);
+    }
+
+    const raw = (await response.json()) as WeatherApiForecastPayload;
+    if (!raw.current || typeof raw.current.temp_c !== 'number') {
+      throw new Error('Resposta meteorológica incompleta da WeatherAPI.');
+    }
+
+    const isDay = raw.current.is_day !== 0;
+    const currentCode = raw.current.condition?.code ?? 1000;
+    const mappedCurrent = mapWeatherApiCode(currentCode, isDay);
+
+    const forecastDays = raw.forecast?.forecastday ?? [];
+    const localtimeIso = (raw.location?.localtime ?? '').replace(' ', 'T');
+    const allHours = forecastDays.flatMap((day) => day.hour ?? []);
+
+    const startHourIdx = Math.max(
+      0,
+      allHours.findIndex(
+        (h) => (h.time ?? '').replace(' ', 'T') >= localtimeIso,
+      ),
+    );
+    const hourly: WeatherHourlyItem[] = allHours
+      .slice(startHourIdx, startHourIdx + 12)
+      .map((h) => ({
+        time: (h.time ?? '').replace(' ', 'T'),
+        temperature: Math.round(h.temp_c ?? 0),
+        precipitationProbability: Math.round(h.chance_of_rain ?? 0),
+      }));
+
+    const daily: WeatherDailyItem[] = forecastDays
+      .filter((day): day is NonNullable<typeof day> & { date: string } =>
+        Boolean(day.date),
+      )
+      .map((day) => {
+        const dayCode = day.day?.condition?.code ?? 1000;
+        const mappedDay = mapWeatherApiCode(dayCode, true);
+        return {
+          date: day.date,
+          weatherCode: dayCode,
+          description: day.day?.condition?.text?.trim() || mappedDay.description,
+          icon: mappedDay.icon,
+          tempMax: Math.round(day.day?.maxtemp_c ?? 0),
+          tempMin: Math.round(day.day?.mintemp_c ?? 0),
+          precipitationProbabilityMax: Math.round(
+            day.day?.daily_chance_of_rain ?? 0,
+          ),
+          sunrise: parseAstroTimeToIso(day.date, day.astro?.sunrise),
+          sunset: parseAstroTimeToIso(day.date, day.astro?.sunset),
+        };
+      });
+
+    return {
+      location: {
+        latitude: roundedLat,
+        longitude: roundedLon,
+        timezone: raw.location?.tz_id ?? 'America/Sao_Paulo',
+      },
+      current: {
+        temperature: Math.round(raw.current.temp_c),
+        apparentTemperature: Math.round(
+          raw.current.feelslike_c ?? raw.current.temp_c,
+        ),
+        humidity: Math.round(raw.current.humidity ?? 0),
+        windSpeed: Math.round(raw.current.wind_kph ?? 0),
+        precipitationProbability:
+          hourly[0]?.precipitationProbability ??
+          daily[0]?.precipitationProbabilityMax ??
+          null,
+        weatherCode: currentCode,
+        description:
+          raw.current.condition?.text?.trim() || mappedCurrent.description,
+        icon: mappedCurrent.icon,
+        isDay,
+      },
+      hourly,
+      daily,
+      fetchedAt: new Date().toISOString(),
+      fromCache: false,
+      isStale: false,
+    };
+  }
+
+  private async fetchFromOpenMeteo(
+    roundedLat: number,
+    roundedLon: number,
+  ): Promise<WeatherForecastResponse> {
+    const url = new URL(OPEN_METEO_FORECAST_URL);
+    url.searchParams.set('latitude', String(roundedLat));
+    url.searchParams.set('longitude', String(roundedLon));
+    url.searchParams.set(
+      'current',
+      'temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day',
+    );
+    url.searchParams.set('hourly', 'temperature_2m,precipitation_probability');
+    url.searchParams.set(
+      'daily',
+      'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset',
+    );
+    url.searchParams.set('timezone', 'auto');
+    url.searchParams.set('forecast_days', '7');
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'NoticeME-Weather/1.0',
+      },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Open-Meteo retornou HTTP ${response.status}`);
+    }
+
+    const raw = (await response.json()) as OpenMeteoForecastPayload;
+    if (!raw.current || typeof raw.current.temperature_2m !== 'number') {
+      throw new Error('Resposta meteorológica incompleta da Open-Meteo.');
+    }
+
+    const isDay = raw.current.is_day !== 0;
+    const currentCode = raw.current.weather_code ?? 0;
+    const currentWmo = mapWmoCode(currentCode, isDay);
+
+    const hourlyTimes = raw.hourly?.time ?? [];
+    const hourlyTemps = raw.hourly?.temperature_2m ?? [];
+    const hourlyPrecip = raw.hourly?.precipitation_probability ?? [];
+    const currentTime = raw.current.time ?? '';
+
+    const startHourIdx = Math.max(
+      0,
+      hourlyTimes.findIndex((t) => t >= currentTime),
+    );
+    const hourly: WeatherHourlyItem[] = hourlyTimes
+      .slice(startHourIdx, startHourIdx + 12)
+      .map((time, idx) => {
+        const actualIdx = startHourIdx + idx;
+        return {
+          time,
+          temperature: Math.round(hourlyTemps[actualIdx] ?? 0),
+          precipitationProbability: Math.round(hourlyPrecip[actualIdx] ?? 0),
+        };
+      });
+
+    const dailyDates = raw.daily?.time ?? [];
+    const dailyCodes = raw.daily?.weather_code ?? [];
+    const dailyMax = raw.daily?.temperature_2m_max ?? [];
+    const dailyMin = raw.daily?.temperature_2m_min ?? [];
+    const dailyPrecipMax = raw.daily?.precipitation_probability_max ?? [];
+    const dailySunrise = raw.daily?.sunrise ?? [];
+    const dailySunset = raw.daily?.sunset ?? [];
+
+    const daily: WeatherDailyItem[] = dailyDates.map((date, idx) => {
+      const code = dailyCodes[idx] ?? 0;
+      const wmo = mapWmoCode(code, true);
+      return {
+        date,
+        weatherCode: code,
+        description: wmo.description,
+        icon: wmo.icon,
+        tempMax: Math.round(dailyMax[idx] ?? 0),
+        tempMin: Math.round(dailyMin[idx] ?? 0),
+        precipitationProbabilityMax: Math.round(dailyPrecipMax[idx] ?? 0),
+        sunrise: dailySunrise[idx] ?? null,
+        sunset: dailySunset[idx] ?? null,
+      };
+    });
+
+    return {
+      location: {
+        latitude: roundedLat,
+        longitude: roundedLon,
+        timezone: raw.timezone ?? 'America/Sao_Paulo',
+      },
+      current: {
+        temperature: Math.round(raw.current.temperature_2m),
+        apparentTemperature: Math.round(
+          raw.current.apparent_temperature ?? raw.current.temperature_2m,
+        ),
+        humidity: Math.round(raw.current.relative_humidity_2m ?? 0),
+        windSpeed: Math.round(raw.current.wind_speed_10m ?? 0),
+        precipitationProbability:
+          hourly[0]?.precipitationProbability ??
+          daily[0]?.precipitationProbabilityMax ??
+          null,
+        weatherCode: currentCode,
+        description: currentWmo.description,
+        icon: currentWmo.icon,
+        isDay,
+      },
+      hourly,
+      daily,
+      fetchedAt: new Date().toISOString(),
+      fromCache: false,
+      isStale: false,
+    };
   }
 }
