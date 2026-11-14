@@ -8,6 +8,7 @@
     "dev:mobile": "pnpm --filter mobile dev",
     "build": "pnpm -r build",
     "lint": "eslint .",
+    "test": "pnpm --filter backend test",
     "format": "prettier --write ."
   },
   "devDependencies": {
