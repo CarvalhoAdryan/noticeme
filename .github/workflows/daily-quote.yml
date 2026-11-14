@@ -6,6 +6,9 @@ on:
     - cron: '10 3 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: daily-quote-refresh
   cancel-in-progress: false
@@ -17,16 +20,25 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - name: Trigger NestJS daily quote refresh
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @dailybrief/shared build
+
+      - name: Run standalone daily quote refresh
         env:
-          API_BASE_URL: ${{ secrets.API_BASE_URL }}
-          ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
-        run: |
-          if [ -z "$API_BASE_URL" ] || [ -z "$ADMIN_API_KEY" ]; then
-            echo "Secrets API_BASE_URL e ADMIN_API_KEY são obrigatórios."
-            exit 1
-          fi
-          curl --fail-with-body --silent --show-error \
-            -X POST "${API_BASE_URL%/}/admin/daily-quote/refresh" \
-            -H "x-admin-token: ${ADMIN_API_KEY}" \
-            -H "Content-Type: application/json"
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: pnpm --filter backend quote:refresh
