@@ -9,10 +9,18 @@ export type DeviceLocationResult =
   | {
       status: 'denied' | 'unavailable';
       message: string;
+      canOpenSettings?: boolean;
     };
 
 interface ExpoLocationModuleLike {
-  requestForegroundPermissionsAsync: () => Promise<{ status: string }>;
+  requestForegroundPermissionsAsync: () => Promise<{
+    status: string;
+    canAskAgain?: boolean;
+  }>;
+  hasServicesEnabledAsync?: () => Promise<boolean>;
+  getLastKnownPositionAsync?: () => Promise<{
+    coords: { latitude: number; longitude: number };
+  } | null>;
   getCurrentPositionAsync: (options?: unknown) => Promise<{
     coords: { latitude: number; longitude: number };
   }>;
@@ -48,13 +56,43 @@ export async function requestDeviceLocation(): Promise<DeviceLocationResult> {
         return {
           status: 'denied',
           message:
-            'Permissão de localização negada. Você pode buscar e escolher sua cidade manualmente.',
+            'Permissão de localização negada. Ative nas configurações do app ou busque sua cidade manualmente.',
+          canOpenSettings: perm.canAskAgain === false,
         };
       }
 
-      const position = await expoLocation.getCurrentPositionAsync({
-        accuracy: expoLocation.Accuracy?.Low,
-      });
+      if (typeof expoLocation.hasServicesEnabledAsync === 'function') {
+        const servicesEnabled = await expoLocation.hasServicesEnabledAsync();
+        if (!servicesEnabled) {
+          return {
+            status: 'unavailable',
+            message:
+              'A localização (GPS) do aparelho está desativada. Ative nas configurações ou escolha sua cidade manualmente.',
+            canOpenSettings: true,
+          };
+        }
+      }
+
+      let position: { coords: { latitude: number; longitude: number } } | null =
+        null;
+      try {
+        position = await expoLocation.getCurrentPositionAsync({
+          accuracy: expoLocation.Accuracy?.Low,
+        });
+      } catch {
+        if (typeof expoLocation.getLastKnownPositionAsync === 'function') {
+          position = await expoLocation.getLastKnownPositionAsync();
+        }
+      }
+
+      if (!position) {
+        return {
+          status: 'unavailable',
+          message:
+            'Não foi possível obter sua posição agora. Verifique se o GPS está ativo ou busque sua cidade.',
+          canOpenSettings: true,
+        };
+      }
 
       const latitude = roundToRegion(position.coords.latitude);
       const longitude = roundToRegion(position.coords.longitude);

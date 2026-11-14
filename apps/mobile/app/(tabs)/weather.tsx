@@ -8,6 +8,8 @@ import type {
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -162,6 +164,15 @@ export default function WeatherScreen() {
     if (result.status !== 'granted') {
       setStatusMessage(result.message);
       setShowCitySearch(true);
+      if (result.canOpenSettings) {
+        Alert.alert('Localização necessária', result.message, [
+          { text: 'Buscar cidade', style: 'cancel' },
+          {
+            text: 'Abrir configurações',
+            onPress: () => void Linking.openSettings(),
+          },
+        ]);
+      }
       return;
     }
 
