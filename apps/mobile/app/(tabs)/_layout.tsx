@@ -29,7 +29,7 @@ export default function TabsLayout() {
             <Ionicons
               name={focused ? 'newspaper' : 'newspaper-outline'}
               size={size}
-              color={color}
+              color={typeof color === 'string' ? color : colors.text}
             />
           ),
         }}
@@ -42,7 +42,7 @@ export default function TabsLayout() {
             <Ionicons
               name={focused ? 'compass' : 'compass-outline'}
               size={size}
-              color={color}
+              color={typeof color === 'string' ? color : colors.text}
             />
           ),
         }}
@@ -55,7 +55,7 @@ export default function TabsLayout() {
             <Ionicons
               name={focused ? 'bookmark' : 'bookmark-outline'}
               size={size}
-              color={color}
+              color={typeof color === 'string' ? color : colors.text}
             />
           ),
         }}
@@ -68,7 +68,7 @@ export default function TabsLayout() {
             <Ionicons
               name={focused ? 'person' : 'person-outline'}
               size={size}
-              color={color}
+              color={typeof color === 'string' ? color : colors.text}
             />
           ),
         }}

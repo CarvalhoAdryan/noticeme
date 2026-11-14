@@ -82,3 +82,4 @@ export async function markArticleReadApi(
     method: 'POST',
   });
 }
+

@@ -43,3 +43,4 @@ export async function fetchArticles(
 export async function fetchCategories(): Promise<Category[]> {
   return apiRequest<Category[]>('/categories');
 }
+

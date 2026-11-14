@@ -264,7 +264,7 @@ export default function ExploreScreen() {
               <View style={styles.footerLoader}>
                 <ActivityIndicator size="small" color={colors.primary} />
               </View>
-            ) : null
+            ) : undefined
           }
           contentContainerStyle={styles.listContent}
         />

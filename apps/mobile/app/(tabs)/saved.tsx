@@ -154,7 +154,7 @@ export default function SavedScreen() {
               <View style={styles.footerLoader}>
                 <ActivityIndicator size="small" color={colors.primary} />
               </View>
-            ) : null
+            ) : undefined
           }
           contentContainerStyle={styles.listContent}
         />

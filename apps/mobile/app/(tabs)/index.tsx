@@ -276,7 +276,7 @@ export default function HomeScreen() {
               <View style={styles.footerLoader}>
                 <ActivityIndicator size="small" color={colors.primary} />
               </View>
-            ) : null
+            ) : undefined
           }
           contentContainerStyle={styles.listContent}
         />
