@@ -48,6 +48,19 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="weather"
+        options={{
+          title: 'Clima',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons
+              name={focused ? 'partly-sunny' : 'partly-sunny-outline'}
+              size={size}
+              color={typeof color === 'string' ? color : colors.text}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="saved"
         options={{
           title: 'Salvos',
