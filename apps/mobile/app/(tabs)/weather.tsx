@@ -34,7 +34,7 @@ import {
 } from '../../src/services/weather.service';
 import { openArticleInBrowser } from '../../src/utils';
 
-const OPEN_METEO_URL = 'https://open-meteo.com/';
+const WEATHER_API_URL = 'https://www.weatherapi.com/';
 
 function formatHourLabel(isoTime: string): string {
   const timePart = isoTime.split('T')[1];
@@ -695,16 +695,16 @@ export default function WeatherScreen() {
               ))}
             </View>
 
-            {/* Atribuição Open-Meteo (CC BY 4.0) */}
+            {/* Atribuição WeatherAPI.com */}
             <Pressable
-              onPress={() => void openArticleInBrowser(OPEN_METEO_URL)}
+              onPress={() => void openArticleInBrowser(WEATHER_API_URL)}
               accessibilityRole="link"
               style={styles.attributionLink}
             >
               <Text
                 style={[styles.attributionText, { color: colors.textSecondary }]}
               >
-                Weather data by Open-Meteo.com (CC BY 4.0)
+                Powered by WeatherAPI.com
               </Text>
             </Pressable>
           </View>
