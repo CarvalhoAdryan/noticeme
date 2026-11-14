@@ -208,6 +208,68 @@ export function formatRelativeTime(isoDate: string): string {
   return `${diffDays} d`;
 }
 
+const MOBILE_NAMED_ENTITIES: Record<string, string> = {
+  nbsp: ' ',
+  amp: '&',
+  quot: '"',
+  apos: "'",
+  lt: '<',
+  gt: '>',
+  lsquo: '‘',
+  rsquo: '’',
+  ldquo: '“',
+  rdquo: '”',
+  ndash: '–',
+  mdash: '—',
+  hellip: '…',
+  aacute: 'á',
+  Aacute: 'Á',
+  agrave: 'à',
+  Agrave: 'À',
+  acirc: 'â',
+  Acirc: 'Â',
+  atilde: 'ã',
+  Atilde: 'Ã',
+  eacute: 'é',
+  Eacute: 'É',
+  ecirc: 'ê',
+  Ecirc: 'Ê',
+  iacute: 'í',
+  Iacute: 'Í',
+  oacute: 'ó',
+  Oacute: 'Ó',
+  ocirc: 'ô',
+  Ocirc: 'Ô',
+  otilde: 'õ',
+  Otilde: 'Õ',
+  uacute: 'ú',
+  Uacute: 'Ú',
+  ccedil: 'ç',
+  Ccedil: 'Ç',
+};
+
+export function sanitizeDisplayText(text?: string | null): string {
+  if (!text) return '';
+
+  return text
+    .replace(/&amp;(#(?:\d+|x[0-9a-fA-F]+)|[a-zA-Z][a-zA-Z0-9]+);/g, '&$1;')
+    .replace(/&#(\d+);/g, (match, dec: string) => {
+      const code = Number.parseInt(dec, 10);
+      return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
+    })
+    .replace(/&#x([0-9a-fA-F]+);/gi, (match, hex: string) => {
+      const code = Number.parseInt(hex, 16);
+      return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : match;
+    })
+    .replace(/&([a-zA-Z][a-zA-Z0-9]+);/g, (match, name: string) => {
+      return MOBILE_NAMED_ENTITIES[name] ?? MOBILE_NAMED_ENTITIES[name.toLowerCase()] ?? match;
+    })
+    .replace(/[\u200B-\u200D\uFEFF\uFFFD]/g, '')
+    .replace(/\u00A0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export async function openArticleInBrowser(url: string): Promise<void> {
   try {
     await WebBrowser.openBrowserAsync(url, {

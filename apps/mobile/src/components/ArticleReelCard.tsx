@@ -9,7 +9,11 @@ import {
   View,
 } from 'react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
-import { CATEGORY_LABELS, formatRelativeTime } from '../utils';
+import {
+  CATEGORY_LABELS,
+  formatRelativeTime,
+  sanitizeDisplayText,
+} from '../utils';
 
 interface ArticleReelCardProps {
   article: ArticleFeedItem;
@@ -39,10 +43,12 @@ export function ArticleReelCard({
     : null;
   const relativeAge = formatRelativeTime(article.publishedAt);
 
+  const cleanTitle = sanitizeDisplayText(article.title);
+  const rawSummary = sanitizeDisplayText(article.summary || article.description);
   const summaryText =
-    article.summary ||
-    article.description ||
+    rawSummary ||
     'Resumo indisponível no feed RSS. Toque em "Ler matéria completa" para acessar o conteúdo original.';
+  const cleanAuthor = sanitizeDisplayText(article.author);
 
   const handleShare = () => {
     void Share.share({
@@ -160,7 +166,7 @@ export function ArticleReelCard({
         </View>
 
         <Text style={[styles.title, { color: colors.text }]} numberOfLines={4}>
-          {article.title}
+          {cleanTitle}
         </Text>
 
         <Text
@@ -170,12 +176,12 @@ export function ArticleReelCard({
           {summaryText}
         </Text>
 
-        {article.author ? (
+        {cleanAuthor ? (
           <Text
             style={[styles.authorText, { color: colors.textSecondary }]}
             numberOfLines={1}
           >
-            Por {article.author}
+            Por {cleanAuthor}
           </Text>
         ) : null}
       </View>
@@ -392,3 +398,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
+

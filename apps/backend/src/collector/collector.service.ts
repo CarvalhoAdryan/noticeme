@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Pool } from 'pg';
 import Parser from 'rss-parser';
 import { PG_POOL } from '../database/database.module';
-import { cleanText, normalizeUrl } from './collector.utils';
+import { cleanText, decodeXmlBuffer, normalizeUrl } from './collector.utils';
 
 export interface SourceRow {
   id: string;
@@ -182,7 +182,8 @@ export class CollectorService {
     const newEtag = response.headers.get('etag') || null;
     const newLastModified = response.headers.get('last-modified') || null;
 
-    const xml = await response.text();
+    const xmlBuffer = Buffer.from(await response.arrayBuffer());
+    const xml = decodeXmlBuffer(xmlBuffer, response.headers.get('content-type'));
     let feed: Parser.Output<ParsedFeedItem>;
     try {
       feed = await this.parser.parseString(xml);
