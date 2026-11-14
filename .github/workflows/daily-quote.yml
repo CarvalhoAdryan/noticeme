@@ -1,0 +1,32 @@
+name: Daily Quote
+
+on:
+  schedule:
+    # 03:10 UTC = 00:10 BRT (America/Sao_Paulo)
+    - cron: '10 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: daily-quote-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh-daily-quote:
+    name: Refresh Daily Quote
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Trigger NestJS daily quote refresh
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
+        run: |
+          if [ -z "$API_BASE_URL" ] || [ -z "$ADMIN_API_KEY" ]; then
+            echo "Secrets API_BASE_URL e ADMIN_API_KEY são obrigatórios."
+            exit 1
+          fi
+          curl --fail-with-body --silent --show-error \
+            -X POST "${API_BASE_URL%/}/admin/daily-quote/refresh" \
+            -H "x-admin-token: ${ADMIN_API_KEY}" \
+            -H "Content-Type: application/json"

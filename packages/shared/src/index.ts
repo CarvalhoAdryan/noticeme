@@ -117,3 +117,13 @@ export const PaginationCursorSchema = z.object({
 });
 
 export type PaginationCursor = z.infer<typeof PaginationCursorSchema>;
+
+export const DailyQuoteResponseSchema = z.object({
+  quote: z.string().min(1),
+  author: z.string().min(1),
+  display_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  source: z.string().min(1),
+  is_fallback: z.boolean(),
+});
+
+export type DailyQuoteResponse = z.infer<typeof DailyQuoteResponseSchema>;
