@@ -99,6 +99,13 @@ export class SupabaseJwtService {
       return explicitSecret.trim();
     }
 
+    const nodeEnv = this.configService.get<string>('NODE_ENV');
+    if (nodeEnv === 'production') {
+      throw new Error(
+        'SUPABASE_JWT_SECRET deve ser definido quando NODE_ENV=production.',
+      );
+    }
+
     const dbUrl = this.configService.get<string>('DATABASE_URL') ?? 'dailybrief-local-secret';
     return crypto.createHash('sha256').update(dbUrl).digest('hex');
   }

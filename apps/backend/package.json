@@ -7,6 +7,7 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "collect": "tsx scripts/collect.ts",
+    "quote:refresh": "tsx scripts/refresh-daily-quote.ts",
     "test:feeds": "tsx scripts/test-feeds.ts",
     "test": "tsx --test src/**/*.spec.ts"
   },
@@ -16,6 +17,7 @@
     "@nestjs/config": "^4.0.1",
     "@nestjs/core": "^11.0.11",
     "@nestjs/platform-express": "^11.0.11",
+    "@nestjs/throttler": "^6.7.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "pg": "^8.13.3",
