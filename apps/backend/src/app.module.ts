@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ArticlesModule } from './articles/articles.module';
 import { AuthModule } from './auth/auth.module';
 import { CollectorModule } from './collector/collector.module';
+import { DailyQuoteModule } from './daily-quote/daily-quote.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
@@ -16,6 +17,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     HealthModule,
     CollectorModule,
+    DailyQuoteModule,
     ArticlesModule,
     UsersModule,
   ],
