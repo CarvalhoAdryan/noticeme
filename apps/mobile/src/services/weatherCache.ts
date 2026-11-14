@@ -14,8 +14,29 @@ interface SqliteModuleLike {
 }
 
 const DB_NAME = 'noticeme_cache.db';
-const LOCATION_STORAGE_KEY = 'noticeme:weather_location';
+const LOCATION_STORAGE_KEY = 'noticeme.weather.location';
 const FORECAST_STORAGE_KEY = 'noticeme:weather_forecast';
+
+interface SecureStoreLike {
+  getItemAsync: (key: string) => Promise<string | null>;
+  setItemAsync: (key: string, value: string) => Promise<void>;
+}
+
+function getSecureStore(): SecureStoreLike | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const store = require('expo-secure-store') as SecureStoreLike;
+    if (
+      typeof store?.getItemAsync === 'function' &&
+      typeof store?.setItemAsync === 'function'
+    ) {
+      return store;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 let memoryLocation: WeatherLocation | null = null;
 let memoryForecast: WeatherForecastResponse | null = null;
@@ -125,6 +146,43 @@ export function writeCachedWeatherLocation(location: WeatherLocation): void {
     storage?.setItem(LOCATION_STORAGE_KEY, serialized);
   } catch {
     // Ignora falha de escrita
+  }
+
+  const secureStore = getSecureStore();
+  if (secureStore) {
+    void secureStore.setItemAsync(LOCATION_STORAGE_KEY, serialized).catch(() => {
+      // Ignora falha de escrita no SecureStore
+    });
+  }
+}
+
+export async function hydrateCachedWeatherLocation(): Promise<WeatherLocation | null> {
+  const existing = readCachedWeatherLocation();
+  if (existing) {
+    return existing;
+  }
+
+  const secureStore = getSecureStore();
+  if (!secureStore) {
+    return null;
+  }
+
+  try {
+    const raw = await secureStore.getItemAsync(LOCATION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as WeatherLocation;
+    if (
+      parsed &&
+      typeof parsed.name === 'string' &&
+      typeof parsed.latitude === 'number' &&
+      typeof parsed.longitude === 'number'
+    ) {
+      memoryLocation = parsed;
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
   }
 }
 

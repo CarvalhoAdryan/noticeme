@@ -6,6 +6,7 @@ import type {
 import { apiRequest } from './api';
 import {
   getRegionKey,
+  hydrateCachedWeatherLocation,
   readCachedWeatherForecast,
   readCachedWeatherLocation,
   writeCachedWeatherForecast,
@@ -20,6 +21,10 @@ const inFlightWeatherRequests = new Map<
 
 export function getSavedWeatherLocation(): WeatherLocation | null {
   return readCachedWeatherLocation();
+}
+
+export async function hydrateWeatherLocation(): Promise<WeatherLocation | null> {
+  return hydrateCachedWeatherLocation();
 }
 
 export function saveWeatherLocation(location: WeatherLocation): void {

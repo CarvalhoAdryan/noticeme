@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useAppTheme } from '../src/hooks/useAppTheme';
 import { warmUpApi } from '../src/services/warmup';
+import { hydrateWeatherLocation } from '../src/services/weather.service';
 import { useAuthStore } from '../src/store/auth.store';
 import { useThemeStore } from '../src/store/theme.store';
 
@@ -14,6 +15,7 @@ export default function RootLayout() {
     warmUpApi();
     void useThemeStore.getState().hydrateTheme();
     void useAuthStore.getState().hydrateSession();
+    void hydrateWeatherLocation();
   }, []);
 
   return (

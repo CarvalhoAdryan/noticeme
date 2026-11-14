@@ -28,6 +28,7 @@ import { requestDeviceLocation } from '../../src/services/location.service';
 import {
   getCachedForecastForLocation,
   getSavedWeatherLocation,
+  hydrateWeatherLocation,
   saveWeatherLocation,
   searchCities,
   syncWeatherForecast,
@@ -138,7 +139,18 @@ export default function WeatherScreen() {
   useEffect(() => {
     if (location) {
       void loadWeather(location, false);
+      return;
     }
+
+    let active = true;
+    void hydrateWeatherLocation().then((restored) => {
+      if (active && restored) {
+        setLocation(restored);
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, [location, loadWeather]);
 
   const handleUseDeviceLocation = async () => {
