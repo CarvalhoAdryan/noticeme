@@ -11,6 +11,7 @@ VALUES
   ('mundo', 'Mundo'),
   ('esportes', 'Esportes'),
   ('ciencia-saude', 'Ciência e Saúde'),
+  ('engenharia', 'Engenharia'),
   ('maranhao', 'Maranhão')
 ON CONFLICT (slug) DO NOTHING;
 
@@ -136,12 +137,13 @@ VALUES
     (SELECT id FROM public.categories WHERE slug = 'tecnologia'),
     true
   ),
+  -- Engenharia
   (
     'eep',
     'Electrical Engineering Portal',
     'https://electrical-engineering-portal.com/feed',
     'https://electrical-engineering-portal.com',
-    (SELECT id FROM public.categories WHERE slug = 'tecnologia'),
+    (SELECT id FROM public.categories WHERE slug = 'engenharia'),
     true
   ),
   (
@@ -149,7 +151,7 @@ VALUES
     'IEEE Spectrum',
     'https://spectrum.ieee.org/feeds/feed.rss',
     'https://spectrum.ieee.org',
-    (SELECT id FROM public.categories WHERE slug = 'tecnologia'),
+    (SELECT id FROM public.categories WHERE slug = 'engenharia'),
     true
   ),
   (
@@ -157,7 +159,7 @@ VALUES
     'Portal Radar Energia',
     'https://portalradarenergia.com.br/feed.xml',
     'https://portalradarenergia.com.br',
-    (SELECT id FROM public.categories WHERE slug = 'tecnologia'),
+    (SELECT id FROM public.categories WHERE slug = 'engenharia'),
     true
   ),
 

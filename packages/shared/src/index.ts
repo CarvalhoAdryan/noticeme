@@ -8,6 +8,7 @@ export const NewsCategorySchema = z.enum([
   'mundo',
   'esportes',
   'ciencia-saude',
+  'engenharia',
   'maranhao',
 ]);
 

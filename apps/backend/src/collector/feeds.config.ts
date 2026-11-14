@@ -6,6 +6,7 @@ export type CategorySlug =
   | 'mundo'
   | 'esportes'
   | 'ciencia-saude'
+  | 'engenharia'
   | 'maranhao';
 
 export type FeedCategory = CategorySlug;
@@ -124,25 +125,26 @@ export const FEEDS: FeedConfig[] = [
     category: 'tecnologia',
     enabled: true,
   },
+  // Engenharia
   {
     slug: 'eep',
     name: 'Electrical Engineering Portal',
     url: 'https://electrical-engineering-portal.com/feed',
-    category: 'tecnologia',
+    category: 'engenharia',
     enabled: true,
   },
   {
     slug: 'ieee-spectrum',
     name: 'IEEE Spectrum',
     url: 'https://spectrum.ieee.org/feeds/feed.rss',
-    category: 'tecnologia',
+    category: 'engenharia',
     enabled: true,
   },
   {
     slug: 'portal-radar-energia',
     name: 'Portal Radar Energia',
     url: 'https://portalradarenergia.com.br/feed.xml',
-    category: 'tecnologia',
+    category: 'engenharia',
     enabled: true,
   },
 

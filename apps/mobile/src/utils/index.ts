@@ -36,6 +36,7 @@ export const CATEGORY_LABELS: Record<NewsCategory, string> = {
   mundo: 'Mundo',
   esportes: 'Esportes',
   'ciencia-saude': 'Ciência e Saúde',
+  engenharia: 'Engenharia',
   maranhao: 'Maranhão',
 };
 
@@ -47,6 +48,7 @@ export const ALL_CATEGORIES: NewsCategory[] = [
   'mundo',
   'esportes',
   'ciencia-saude',
+  'engenharia',
   'maranhao',
 ];
 

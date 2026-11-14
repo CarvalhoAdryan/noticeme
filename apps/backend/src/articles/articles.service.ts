@@ -51,7 +51,8 @@ export class ArticlesService {
           WHEN 'mundo' THEN 5
           WHEN 'esportes' THEN 6
           WHEN 'ciencia-saude' THEN 7
-          WHEN 'maranhao' THEN 8
+          WHEN 'engenharia' THEN 8
+          WHEN 'maranhao' THEN 9
           ELSE 99
         END ASC
     `);
