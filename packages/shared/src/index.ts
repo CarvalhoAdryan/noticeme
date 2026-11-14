@@ -127,3 +127,67 @@ export const DailyQuoteResponseSchema = z.object({
 });
 
 export type DailyQuoteResponse = z.infer<typeof DailyQuoteResponseSchema>;
+
+export interface WeatherLocation {
+  name: string;
+  admin1?: string | null;
+  country?: string | null;
+  latitude: number;
+  longitude: number;
+  timezone?: string | null;
+  isAutomatic?: boolean;
+}
+
+export interface WeatherCurrent {
+  temperature: number;
+  apparentTemperature: number;
+  humidity: number;
+  windSpeed: number;
+  precipitationProbability: number | null;
+  weatherCode: number;
+  description: string;
+  icon: string;
+  isDay: boolean;
+}
+
+export interface WeatherHourlyItem {
+  time: string;
+  temperature: number;
+  precipitationProbability: number;
+}
+
+export interface WeatherDailyItem {
+  date: string;
+  weatherCode: number;
+  description: string;
+  icon: string;
+  tempMax: number;
+  tempMin: number;
+  precipitationProbabilityMax: number;
+  sunrise: string | null;
+  sunset: string | null;
+}
+
+export interface WeatherForecastResponse {
+  location: {
+    latitude: number;
+    longitude: number;
+    timezone: string;
+  };
+  current: WeatherCurrent;
+  hourly: WeatherHourlyItem[];
+  daily: WeatherDailyItem[];
+  fetchedAt: string;
+  fromCache: boolean;
+  isStale?: boolean;
+}
+
+export interface GeocodingResult {
+  id: number;
+  name: string;
+  admin1: string | null;
+  country: string | null;
+  latitude: number;
+  longitude: number;
+  timezone: string | null;
+}

@@ -7,6 +7,7 @@ import { DailyQuoteModule } from './daily-quote/daily-quote.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { UsersModule } from './users/users.module';
+import { WeatherModule } from './weather/weather.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { UsersModule } from './users/users.module';
     HealthModule,
     CollectorModule,
     DailyQuoteModule,
+    WeatherModule,
     ArticlesModule,
     UsersModule,
   ],
