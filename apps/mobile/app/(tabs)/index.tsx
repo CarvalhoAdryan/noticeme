@@ -6,6 +6,7 @@ import {
   type LayoutChangeEvent,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -17,7 +18,11 @@ import { useAppTheme } from '../../src/hooks/useAppTheme';
 import { fetchArticles } from '../../src/services/articles.service';
 import { useAuthStore } from '../../src/store/auth.store';
 import { useBookmarksStore } from '../../src/store/bookmarks.store';
-import { openArticleInBrowser } from '../../src/utils';
+import {
+  ALL_CATEGORIES,
+  CATEGORY_LABELS,
+  openArticleInBrowser,
+} from '../../src/utils';
 
 type FeedScope = 'all' | 'followed';
 
@@ -25,6 +30,7 @@ export default function HomeScreen() {
   const { colors } = useAppTheme();
   const user = useAuthStore((state) => state.user);
   const guestCategories = useAuthStore((state) => state.guestCategories);
+  const toggleCategory = useAuthStore((state) => state.toggleCategory);
 
   const favoriteIds = useBookmarksStore((state) => state.favoriteIds);
   const readIds = useBookmarksStore((state) => state.readIds);
@@ -161,7 +167,7 @@ export default function HomeScreen() {
               {todayFormatted}
             </Text>
             <Text style={[styles.brandTitle, { color: colors.text }]}>
-              DailyBrief
+              NoticeME
             </Text>
           </View>
 
@@ -221,6 +227,49 @@ export default function HomeScreen() {
             </Pressable>
           </View>
         </View>
+
+        {scope === 'followed' ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.followedFiltersRow}
+          >
+            {ALL_CATEGORIES.map((slug) => {
+              const isSelected = activeCategories.includes(slug);
+              return (
+                <Pressable
+                  key={slug}
+                  onPress={() => void toggleCategory(slug)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Filtrar editoria ${CATEGORY_LABELS[slug]}`}
+                  accessibilityState={{ selected: isSelected }}
+                  style={[
+                    styles.filterChip,
+                    {
+                      backgroundColor: isSelected
+                        ? colors.primarySoft
+                        : colors.surfaceMuted,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      {
+                        color: isSelected
+                          ? colors.primary
+                          : colors.textSecondary,
+                      },
+                    ]}
+                  >
+                    {CATEGORY_LABELS[slug]}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        ) : null}
       </View>
 
       <View style={styles.reelViewport} onLayout={handleFeedLayout}>
@@ -251,7 +300,7 @@ export default function HomeScreen() {
             }
             description={
               scope === 'followed'
-                ? 'Selecione mais editorias na aba Perfil ou alterne para Últimas.'
+                ? 'Selecione editorias acima ou alterne para Últimas.'
                 : 'Execute a coleta de feeds ou aguarde a próxima atualização.'
             }
             actionLabel={
@@ -359,6 +408,24 @@ const styles = StyleSheet.create({
   scopeText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  followedFiltersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 10,
+  },
+  filterChip: {
+    minHeight: 36,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   reelViewport: {
     flex: 1,

@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "DailyBrief",
-    "slug": "dailybrief",
+    "name": "NoticeME",
+    "slug": "noticeme",
     "version": "0.1.0",
     "orientation": "portrait",
-    "scheme": "dailybrief",
+    "scheme": "noticeme",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
