@@ -57,6 +57,53 @@ export const ArticleSchema = z.object({
 
 export type Article = z.infer<typeof ArticleSchema>;
 
+export const UserArticleStateSchema = z.object({
+  isFavorite: z.boolean(),
+  readAt: z.string().datetime().nullable(),
+  hidden: z.boolean(),
+});
+
+export type UserArticleState = z.infer<typeof UserArticleStateSchema>;
+
+export const ArticleFeedItemSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(1),
+  description: z.string().nullable(),
+  url: z.string().url(),
+  imageUrl: z.string().url().nullable(),
+  author: z.string().nullable(),
+  publishedAt: z.string().datetime(),
+  collectedAt: z.string().datetime(),
+  summary: z.string().nullable(),
+  source: z.object({
+    id: z.string().uuid(),
+    slug: z.string(),
+    name: z.string(),
+  }),
+  categories: z.array(CategorySchema),
+  userState: UserArticleStateSchema.nullable(),
+});
+
+export type ArticleFeedItem = z.infer<typeof ArticleFeedItemSchema>;
+
+export const PaginatedArticlesResponseSchema = z.object({
+  data: z.array(ArticleFeedItemSchema),
+  nextCursor: z.string().nullable(),
+  hasMore: z.boolean(),
+});
+
+export type PaginatedArticlesResponse = z.infer<typeof PaginatedArticlesResponseSchema>;
+
+export const UserProfileSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email().nullable(),
+  displayName: z.string().nullable(),
+  createdAt: z.string().datetime(),
+  categories: z.array(NewsCategorySchema),
+});
+
+export type UserProfile = z.infer<typeof UserProfileSchema>;
+
 export const HealthResponseSchema = z.object({
   status: z.literal('ok'),
 });
