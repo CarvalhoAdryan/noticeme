@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@dailybrief/shared": "workspace:*",
+    "@expo/metro-runtime": "~58.0.17",
     "@expo/vector-icons": "^15.0.0",
     "@react-navigation/native": "^7.0.14",
     "expo": "~58.0.25",
