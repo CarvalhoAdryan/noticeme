@@ -8,6 +8,7 @@
       "policy": "appVersion"
     },
     "updates": {
+      "url": "https://u.expo.dev/02b00e29-4c3e-47c9-acb0-d7e397c33c33",
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
     },
