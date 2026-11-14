@@ -124,6 +124,27 @@ export const FEEDS: FeedConfig[] = [
     category: 'tecnologia',
     enabled: true,
   },
+  {
+    slug: 'eep',
+    name: 'Electrical Engineering Portal',
+    url: 'https://electrical-engineering-portal.com/feed',
+    category: 'tecnologia',
+    enabled: true,
+  },
+  {
+    slug: 'ieee-spectrum',
+    name: 'IEEE Spectrum',
+    url: 'https://spectrum.ieee.org/feeds/feed.rss',
+    category: 'tecnologia',
+    enabled: true,
+  },
+  {
+    slug: 'portal-radar-energia',
+    name: 'Portal Radar Energia',
+    url: 'https://portalradarenergia.com.br/feed.xml',
+    category: 'tecnologia',
+    enabled: true,
+  },
 
   // Mundo
   {

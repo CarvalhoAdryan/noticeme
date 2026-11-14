@@ -136,6 +136,30 @@ VALUES
     (SELECT id FROM public.categories WHERE slug = 'tecnologia'),
     true
   ),
+  (
+    'eep',
+    'Electrical Engineering Portal',
+    'https://electrical-engineering-portal.com/feed',
+    'https://electrical-engineering-portal.com',
+    (SELECT id FROM public.categories WHERE slug = 'tecnologia'),
+    true
+  ),
+  (
+    'ieee-spectrum',
+    'IEEE Spectrum',
+    'https://spectrum.ieee.org/feeds/feed.rss',
+    'https://spectrum.ieee.org',
+    (SELECT id FROM public.categories WHERE slug = 'tecnologia'),
+    true
+  ),
+  (
+    'portal-radar-energia',
+    'Portal Radar Energia',
+    'https://portalradarenergia.com.br/feed.xml',
+    'https://portalradarenergia.com.br',
+    (SELECT id FROM public.categories WHERE slug = 'tecnologia'),
+    true
+  ),
 
   -- Mundo
   (
