@@ -5,7 +5,8 @@ export type ThemePresetId =
   | 'ocean'
   | 'forest'
   | 'amber'
-  | 'indigo';
+  | 'indigo'
+  | 'love';
 
 export interface AppThemeColors {
   background: string;

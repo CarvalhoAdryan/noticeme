@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArticleRow } from '../../src/components/ArticleRow';
 import { StateView } from '../../src/components/StateView';
+import { LoveBackground } from '../../src/components/LoveBackground';
 import { useAppTheme } from '../../src/hooks/useAppTheme';
 import { useAuthStore } from '../../src/store/auth.store';
 import { useBookmarksStore } from '../../src/store/bookmarks.store';
@@ -57,6 +58,7 @@ export default function SavedScreen() {
       edges={['top']}
       style={[styles.safeArea, { backgroundColor: colors.background }]}
     >
+      <LoveBackground />
       <View
         style={[
           styles.header,

@@ -13,6 +13,7 @@ const VALID_PRESETS = new Set<ThemePresetId>([
   'forest',
   'amber',
   'indigo',
+  'love',
 ]);
 
 export interface StoredThemeSettings {

@@ -152,6 +152,35 @@ export const THEME_PRESETS: Record<ThemePresetId, ThemePresetDefinition> = {
       success: '#4ADE80',
     },
   },
+  love: {
+    id: 'love',
+    label: 'Love',
+    swatch: '#DB2777',
+    light: {
+      background: '#FFF5F8',
+      surface: '#FFFFFF',
+      surfaceMuted: '#FCE7F3',
+      text: '#2A101B',
+      textSecondary: '#7A435B',
+      primary: '#DB2777',
+      primarySoft: '#FCE7F3',
+      border: '#F5D0E0',
+      danger: '#DC2626',
+      success: '#15803D',
+    },
+    dark: {
+      background: '#170B12',
+      surface: '#24121C',
+      surfaceMuted: '#331928',
+      text: '#FDF2F8',
+      textSecondary: '#D1A3B8',
+      primary: '#F472B6',
+      primarySoft: '#4A1935',
+      border: '#432134',
+      danger: '#F87171',
+      success: '#4ADE80',
+    },
+  },
 };
 
 export const THEME_PRESET_LIST: ThemePresetDefinition[] = Object.values(THEME_PRESETS);

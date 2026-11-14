@@ -21,6 +21,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DailyQuoteCard } from '../../src/components/DailyQuoteCard';
 import { StateView } from '../../src/components/StateView';
+import { LoveBackground } from '../../src/components/LoveBackground';
 import { useAppTheme } from '../../src/hooks/useAppTheme';
 import {
   getCachedDailyQuote,
@@ -244,6 +245,7 @@ export default function WeatherScreen() {
       edges={['top']}
       style={[styles.safeArea, { backgroundColor: colors.background }]}
     >
+      <LoveBackground />
       <View
         style={[
           styles.header,

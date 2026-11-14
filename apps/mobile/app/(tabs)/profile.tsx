@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LoveBackground } from '../../src/components/LoveBackground';
 import { useAppTheme } from '../../src/hooks/useAppTheme';
 import { useAuthStore } from '../../src/store/auth.store';
 import { useThemeStore } from '../../src/store/theme.store';
@@ -125,6 +126,7 @@ export default function ProfileScreen() {
       edges={['top']}
       style={[styles.safeArea, { backgroundColor: colors.background }]}
     >
+      <LoveBackground />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
@@ -262,8 +264,8 @@ export default function ProfileScreen() {
                     { color: colors.textSecondary },
                   ]}
                 >
-                  Sincronize suas editorias preferidas e preserve artigos
-                  favoritos no Supabase.
+                  Crie ou entre na sua conta para preservar seus artigos
+                  favoritos e sincronizar suas editorias preferidas.
                 </Text>
 
                 {authMode === 'register' ? (
@@ -584,12 +586,20 @@ export default function ProfileScreen() {
                       },
                     ]}
                   >
-                    <View
-                      style={[
-                        styles.presetSwatch,
-                        { backgroundColor: item.swatch },
-                      ]}
-                    />
+                    {item.id === 'love' ? (
+                      <Ionicons
+                        name="heart"
+                        size={14}
+                        color={item.swatch}
+                      />
+                    ) : (
+                      <View
+                        style={[
+                          styles.presetSwatch,
+                          { backgroundColor: item.swatch },
+                        ]}
+                      />
+                    )}
                     <Text
                       style={[
                         styles.presetItemText,

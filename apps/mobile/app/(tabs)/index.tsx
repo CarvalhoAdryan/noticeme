@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArticleReelCard } from '../../src/components/ArticleReelCard';
 import { DailyQuoteCard } from '../../src/components/DailyQuoteCard';
 import { StateView } from '../../src/components/StateView';
+import { LoveBackground } from '../../src/components/LoveBackground';
 import { useAppTheme } from '../../src/hooks/useAppTheme';
 import { fetchArticles } from '../../src/services/articles.service';
 import {
@@ -180,6 +181,7 @@ export default function HomeScreen() {
       edges={['top']}
       style={[styles.safeArea, { backgroundColor: colors.background }]}
     >
+      <LoveBackground />
       <View
         style={[
           styles.header,
