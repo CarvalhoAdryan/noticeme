@@ -2,6 +2,10 @@ import type { NewsCategory, UserProfile } from '@dailybrief/shared';
 import { create } from 'zustand';
 import { ApiError, setApiAuthToken } from '../services/api';
 import {
+  getStoredHiddenCategories,
+  setStoredHiddenCategories,
+} from '../services/preferencesStorage';
+import {
   clearStoredAuthToken,
   getStoredAuthToken,
   setStoredAuthToken,
@@ -18,6 +22,7 @@ interface AuthState {
   token: string | null;
   user: UserProfile | null;
   guestCategories: NewsCategory[];
+  hiddenCategories: NewsCategory[];
   isSubmitting: boolean;
   isHydrating: boolean;
   error: string | null;
@@ -31,6 +36,7 @@ interface AuthState {
   ) => Promise<boolean>;
   logout: () => void;
   toggleCategory: (slug: NewsCategory) => Promise<void>;
+  toggleHiddenCategory: (slug: NewsCategory) => Promise<void>;
   updateDisplayName: (displayName: string) => Promise<boolean>;
 }
 
@@ -38,6 +44,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   user: null,
   guestCategories: ['geral', 'tecnologia', 'economia'],
+  hiddenCategories: [],
   isSubmitting: false,
   isHydrating: false,
   error: null,
@@ -45,11 +52,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   clearError: () => set({ error: null }),
 
   hydrateSession: async () => {
-    if (get().isHydrating || get().token) return;
+    const hiddenPromise = getStoredHiddenCategories();
+    if (get().isHydrating || get().token) {
+      const hiddenCategories = await hiddenPromise;
+      set({ hiddenCategories });
+      return;
+    }
     set({ isHydrating: true });
 
     try {
-      const storedToken = await getStoredAuthToken();
+      const [storedToken, hiddenCategories] = await Promise.all([
+        getStoredAuthToken(),
+        hiddenPromise,
+      ]);
+      set({ hiddenCategories });
+
       if (!storedToken) {
         set({ isHydrating: false });
         return;
@@ -126,7 +143,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   toggleCategory: async (slug) => {
-    const { user, guestCategories } = get();
+    const { user, guestCategories, hiddenCategories } = get();
+    if (hiddenCategories.includes(slug)) {
+      const nextHidden = hiddenCategories.filter((c) => c !== slug);
+      set({ hiddenCategories: nextHidden });
+      void setStoredHiddenCategories(nextHidden);
+    }
 
     if (!user) {
       const exists = guestCategories.includes(slug);
@@ -159,6 +181,38 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           ? err.message
           : 'Erro ao salvar preferências de categorias.';
       set({ user: { ...user, categories: previous }, error: msg });
+    }
+  },
+
+  toggleHiddenCategory: async (slug) => {
+    const { user, guestCategories, hiddenCategories } = get();
+    const isHidden = hiddenCategories.includes(slug);
+    const nextHidden = isHidden
+      ? hiddenCategories.filter((c) => c !== slug)
+      : [...hiddenCategories, slug];
+
+    set({ hiddenCategories: nextHidden });
+    await setStoredHiddenCategories(nextHidden);
+
+    if (!isHidden) {
+      if (!user && guestCategories.includes(slug)) {
+        set({ guestCategories: guestCategories.filter((c) => c !== slug) });
+      } else if (user && user.categories.includes(slug)) {
+        const previous = user.categories;
+        const nextFollowed = previous.filter((c) => c !== slug);
+        set({ user: { ...user, categories: nextFollowed } });
+        try {
+          const updated = await updateUserCategoriesApi(nextFollowed);
+          set({
+            user: {
+              ...user,
+              categories: updated.map((c) => c.slug),
+            },
+          });
+        } catch {
+          set({ user: { ...user, categories: previous } });
+        }
+      }
     }
   },
 

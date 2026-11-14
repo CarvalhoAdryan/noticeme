@@ -1,5 +1,5 @@
 import type { ArticleFeedItem, DailyQuoteResponse } from '@dailybrief/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -35,6 +35,7 @@ export default function HomeScreen() {
   const { colors } = useAppTheme();
   const user = useAuthStore((state) => state.user);
   const guestCategories = useAuthStore((state) => state.guestCategories);
+  const hiddenCategories = useAuthStore((state) => state.hiddenCategories);
   const toggleCategory = useAuthStore((state) => state.toggleCategory);
 
   const favoriteIds = useBookmarksStore((state) => state.favoriteIds);
@@ -69,6 +70,13 @@ export default function HomeScreen() {
   }, []);
 
   const activeCategories = user ? user.categories : guestCategories;
+  const visibleArticles = useMemo(() => {
+    if (hiddenCategories.length === 0) return articles;
+    return articles.filter(
+      (article) =>
+        !article.categories.some((cat) => hiddenCategories.includes(cat.slug)),
+    );
+  }, [articles, hiddenCategories]);
 
   const loadFeed = useCallback(
     async (opts: { reset: boolean; cursor?: string | null }) => {
@@ -301,7 +309,7 @@ export default function HomeScreen() {
             title="Atualizando manchetes"
             description="Buscando as últimas publicações das fontes verificadas."
           />
-        ) : error && articles.length === 0 ? (
+        ) : error && visibleArticles.length === 0 ? (
           <StateView
             mode="error"
             title="Não foi possível carregar o feed"
@@ -312,7 +320,7 @@ export default function HomeScreen() {
               void loadFeed({ reset: true });
             }}
           />
-        ) : articles.length === 0 ? (
+        ) : visibleArticles.length === 0 ? (
           <StateView
             mode="empty"
             title={
@@ -339,7 +347,7 @@ export default function HomeScreen() {
           />
         ) : reelHeight > 0 ? (
           <FlatList
-            data={articles}
+            data={visibleArticles}
             keyExtractor={(item) => item.id}
             pagingEnabled
             decelerationRate="fast"
@@ -357,7 +365,7 @@ export default function HomeScreen() {
                 article={item}
                 height={reelHeight}
                 index={index}
-                totalCount={articles.length}
+                totalCount={visibleArticles.length}
                 isFavorite={Boolean(favoriteIds[item.id])}
                 isRead={Boolean(readIds[item.id])}
                 onReadMore={handleOpenArticle}

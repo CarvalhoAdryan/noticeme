@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import type { NewsCategory } from '@dailybrief/shared';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -32,6 +33,7 @@ export default function ProfileScreen() {
 
   const user = useAuthStore((state) => state.user);
   const guestCategories = useAuthStore((state) => state.guestCategories);
+  const hiddenCategories = useAuthStore((state) => state.hiddenCategories);
   const isSubmitting = useAuthStore((state) => state.isSubmitting);
   const authError = useAuthStore((state) => state.error);
   const clearError = useAuthStore((state) => state.clearError);
@@ -39,7 +41,46 @@ export default function ProfileScreen() {
   const register = useAuthStore((state) => state.register);
   const logout = useAuthStore((state) => state.logout);
   const toggleCategory = useAuthStore((state) => state.toggleCategory);
+  const toggleHiddenCategory = useAuthStore(
+    (state) => state.toggleHiddenCategory,
+  );
   const updateDisplayName = useAuthStore((state) => state.updateDisplayName);
+
+  const lastTapRef = useRef<{ slug: NewsCategory; time: number } | null>(null);
+  const tapTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (tapTimeoutRef.current) {
+        clearTimeout(tapTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleCategoryPress = (slug: NewsCategory) => {
+    const now = Date.now();
+    const lastTap = lastTapRef.current;
+
+    if (lastTap && lastTap.slug === slug && now - lastTap.time < 280) {
+      if (tapTimeoutRef.current) {
+        clearTimeout(tapTimeoutRef.current);
+        tapTimeoutRef.current = null;
+      }
+      lastTapRef.current = null;
+      void toggleHiddenCategory(slug);
+      return;
+    }
+
+    lastTapRef.current = { slug, time: now };
+    if (tapTimeoutRef.current) {
+      clearTimeout(tapTimeoutRef.current);
+    }
+    tapTimeoutRef.current = setTimeout(() => {
+      lastTapRef.current = null;
+      tapTimeoutRef.current = null;
+      void toggleCategory(slug);
+    }, 280);
+  };
 
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
@@ -384,43 +425,71 @@ export default function ProfileScreen() {
                 { color: colors.textSecondary },
               ]}
             >
-              Usadas no filtro Seguindo da aba Início.
+              Toque para seguir no filtro Seguindo. Toque duplo para ocultar do
+              feed.
             </Text>
 
             <View style={styles.categoriesGrid}>
               {ALL_CATEGORIES.map((slug) => {
-                const isSelected = selectedCategories.includes(slug);
+                const isHidden = hiddenCategories.includes(slug);
+                const isSelected = !isHidden && selectedCategories.includes(slug);
                 return (
                   <Pressable
                     key={slug}
-                    onPress={() => void toggleCategory(slug)}
+                    onPress={() => handleCategoryPress(slug)}
                     accessibilityRole="checkbox"
-                    accessibilityLabel={CATEGORY_LABELS[slug]}
+                    accessibilityLabel={
+                      isHidden
+                        ? `${CATEGORY_LABELS[slug]} (oculto do feed)`
+                        : CATEGORY_LABELS[slug]
+                    }
                     accessibilityState={{ checked: isSelected }}
                     style={[
                       styles.categoryItem,
                       {
                         backgroundColor: isSelected
                           ? colors.text
-                          : colors.background,
-                        borderColor: isSelected ? colors.text : colors.border,
+                          : isHidden
+                            ? colors.surfaceMuted
+                            : colors.background,
+                        borderColor: isSelected
+                          ? colors.text
+                          : isHidden
+                            ? colors.danger
+                            : colors.border,
+                        opacity: isHidden ? 0.75 : 1,
                       },
                     ]}
                   >
                     <Ionicons
                       name={
-                        isSelected ? 'checkmark-circle' : 'add-circle-outline'
+                        isHidden
+                          ? 'eye-off-outline'
+                          : isSelected
+                            ? 'checkmark-circle'
+                            : 'add-circle-outline'
                       }
                       size={18}
                       color={
-                        isSelected ? colors.background : colors.textSecondary
+                        isHidden
+                          ? colors.danger
+                          : isSelected
+                            ? colors.background
+                            : colors.textSecondary
                       }
                     />
                     <Text
                       style={[
                         styles.categoryItemText,
                         {
-                          color: isSelected ? colors.background : colors.text,
+                          color: isHidden
+                            ? colors.danger
+                            : isSelected
+                              ? colors.background
+                              : colors.text,
+                          textDecorationLine: isHidden
+                            ? 'line-through'
+                            : 'none',
                         },
                       ]}
                     >
