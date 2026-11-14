@@ -2,7 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import type { ArticleFeedItem } from '@dailybrief/shared';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
-import { CATEGORY_LABELS, formatRelativeTime } from '../utils';
+import {
+  CATEGORY_LABELS,
+  formatRelativeTime,
+  sanitizeDisplayText,
+} from '../utils';
 
 interface ArticleRowProps {
   article: ArticleFeedItem;
@@ -25,12 +29,14 @@ export function ArticleRow({
     ? CATEGORY_LABELS[primaryCategory]
     : null;
   const relativeAge = formatRelativeTime(article.publishedAt);
+  const cleanTitle = sanitizeDisplayText(article.title);
+  const cleanDescription = sanitizeDisplayText(article.description);
 
   return (
     <Pressable
       onPress={() => onPress(article)}
       accessibilityRole="button"
-      accessibilityLabel={`${article.source.name}, ${article.title}`}
+      accessibilityLabel={`${article.source.name}, ${cleanTitle}`}
       accessibilityHint="Abre a notícia original no navegador"
       style={({ pressed }) => [
         styles.row,
@@ -111,15 +117,15 @@ export function ArticleRow({
               ]}
               numberOfLines={3}
             >
-              {article.title}
+              {cleanTitle}
             </Text>
 
-            {article.description ? (
+            {cleanDescription ? (
               <Text
                 style={[styles.description, { color: colors.textSecondary }]}
                 numberOfLines={2}
               >
-                {article.description}
+                {cleanDescription}
               </Text>
             ) : null}
           </View>
