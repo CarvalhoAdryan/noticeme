@@ -3,13 +3,20 @@ import { StyleSheet, View } from 'react-native';
 import { useAppTheme } from '../hooks/useAppTheme';
 
 const DECORATIVE_HEARTS = [
-  { top: '8%', left: '10%', size: 28, rotate: '-14deg', opacity: 0.08 },
-  { top: '16%', right: '12%', size: 22, rotate: '16deg', opacity: 0.07 },
-  { top: '34%', left: '78%', size: 34, rotate: '-8deg', opacity: 0.06 },
-  { top: '48%', left: '8%', size: 20, rotate: '20deg', opacity: 0.07 },
-  { top: '65%', right: '14%', size: 30, rotate: '-18deg', opacity: 0.08 },
-  { top: '82%', left: '18%', size: 26, rotate: '12deg', opacity: 0.07 },
-  { top: '88%', right: '22%', size: 18, rotate: '-10deg', opacity: 0.06 },
+  { top: '5%', left: '7%', size: 22, rotate: '-14deg', opacity: 0.14 },
+  { top: '9%', right: '10%', size: 26, rotate: '16deg', opacity: 0.13 },
+  { top: '18%', left: '46%', size: 18, rotate: '8deg', opacity: 0.12 },
+  { top: '26%', left: '12%', size: 28, rotate: '-10deg', opacity: 0.15 },
+  { top: '31%', right: '8%', size: 20, rotate: '22deg', opacity: 0.13 },
+  { top: '42%', left: '76%', size: 32, rotate: '-8deg', opacity: 0.14 },
+  { top: '47%', left: '6%', size: 22, rotate: '18deg', opacity: 0.15 },
+  { top: '55%', left: '44%', size: 20, rotate: '-16deg', opacity: 0.12 },
+  { top: '62%', right: '12%', size: 28, rotate: '-18deg', opacity: 0.15 },
+  { top: '68%', left: '16%', size: 18, rotate: '12deg', opacity: 0.13 },
+  { top: '76%', right: '28%', size: 24, rotate: '14deg', opacity: 0.14 },
+  { top: '82%', left: '10%', size: 26, rotate: '-12deg', opacity: 0.15 },
+  { top: '88%', right: '10%', size: 20, rotate: '-10deg', opacity: 0.14 },
+  { top: '92%', left: '52%', size: 16, rotate: '18deg', opacity: 0.12 },
 ] as const;
 
 export function LoveBackground() {
@@ -30,7 +37,7 @@ export function LoveBackground() {
               top: heart.top,
               left: 'left' in heart ? heart.left : undefined,
               right: 'right' in heart ? heart.right : undefined,
-              opacity: isDark ? heart.opacity * 1.15 : heart.opacity,
+              opacity: isDark ? heart.opacity + 0.04 : heart.opacity,
               transform: [{ rotate: heart.rotate }],
             },
           ]}

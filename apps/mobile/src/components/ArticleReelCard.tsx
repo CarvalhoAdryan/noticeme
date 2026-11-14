@@ -63,7 +63,7 @@ export function ArticleReelCard({
         styles.page,
         {
           height,
-          backgroundColor: colors.background,
+          backgroundColor: 'transparent',
           borderBottomColor: colors.border,
         },
       ]}
