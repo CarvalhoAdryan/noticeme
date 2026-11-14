@@ -265,6 +265,42 @@ export default function WeatherScreen() {
           ) : undefined
         }
       >
+        {/* Pensamento do Dia no topo da aba Clima */}
+        {dailyQuote ? (
+          <View
+            style={[
+              styles.quoteWrapper,
+              {
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <DailyQuoteCard quote={dailyQuote} />
+          </View>
+        ) : (
+          <View
+            style={[
+              styles.quotePlaceholder,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.quotePlaceholderEyebrow, { color: colors.primary }]}>
+              Pensamento do Dia
+            </Text>
+            <Text
+              style={[
+                styles.quotePlaceholderText,
+                { color: colors.textSecondary },
+              ]}
+            >
+              Aguardando sincronização da citação diária no servidor.
+            </Text>
+          </View>
+        )}
+
         {/* Painel de busca/permissão de localização */}
         {!location || showCitySearch ? (
           <View
@@ -673,20 +709,6 @@ export default function WeatherScreen() {
             </Pressable>
           </View>
         ) : null}
-
-        {/* 11. Pensamento do Dia integrado na parte inferior da aba Clima */}
-        {dailyQuote ? (
-          <View
-            style={[
-              styles.quoteWrapper,
-              {
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <DailyQuoteCard quote={dailyQuote} />
-          </View>
-        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -941,4 +963,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
   },
+  quotePlaceholder: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 4,
+  },
+  quotePlaceholderEyebrow: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+  },
+  quotePlaceholderText: {
+    fontSize: 13,
+  },
 });
+
