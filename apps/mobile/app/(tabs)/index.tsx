@@ -1,5 +1,339 @@
-import { ScreenContainer } from '../../src/components/ScreenContainer';
+import type { ArticleFeedItem } from '@dailybrief/shared';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { ArticleRow } from '../../src/components/ArticleRow';
+import { StateView } from '../../src/components/StateView';
+import { useAppTheme } from '../../src/hooks/useAppTheme';
+import { fetchArticles } from '../../src/services/articles.service';
+import { useAuthStore } from '../../src/store/auth.store';
+import { useBookmarksStore } from '../../src/store/bookmarks.store';
+import { openArticleInBrowser } from '../../src/utils';
+
+type FeedScope = 'all' | 'followed';
 
 export default function HomeScreen() {
-  return <ScreenContainer title="Início" />;
+  const { colors } = useAppTheme();
+  const user = useAuthStore((state) => state.user);
+  const guestCategories = useAuthStore((state) => state.guestCategories);
+
+  const favoriteIds = useBookmarksStore((state) => state.favoriteIds);
+  const readIds = useBookmarksStore((state) => state.readIds);
+  const syncFromFeed = useBookmarksStore((state) => state.syncFromFeed);
+  const toggleBookmark = useBookmarksStore((state) => state.toggleBookmark);
+  const markAsRead = useBookmarksStore((state) => state.markAsRead);
+
+  const [scope, setScope] = useState<FeedScope>('all');
+  const [articles, setArticles] = useState<ArticleFeedItem[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const activeCategories = user ? user.categories : guestCategories;
+
+  const loadFeed = useCallback(
+    async (opts: { reset: boolean; cursor?: string | null }) => {
+      if (opts.reset) {
+        setError(null);
+      }
+
+      try {
+        const useServerFollowed = Boolean(user && scope === 'followed');
+        const response = await fetchArticles({
+          limit: 20,
+          cursor: opts.reset ? null : opts.cursor,
+          onlyFollowed: useServerFollowed,
+        });
+
+        syncFromFeed(response.data);
+
+        let items = response.data;
+        if (!user && scope === 'followed' && activeCategories.length > 0) {
+          items = items.filter((item) =>
+            item.categories.some((c) => activeCategories.includes(c.slug)),
+          );
+        }
+
+        setArticles((prev) => {
+          if (opts.reset) return items;
+          const existingIds = new Set(prev.map((a) => a.id));
+          return [...prev, ...items.filter((a) => !existingIds.has(a.id))];
+        });
+
+        setNextCursor(response.nextCursor);
+        setHasMore(response.hasMore);
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : 'Falha ao carregar o feed de notícias.';
+        setError(message);
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+        setIsLoadingMore(false);
+      }
+    },
+    [user, scope, activeCategories, syncFromFeed],
+  );
+
+  useEffect(() => {
+    setIsLoading(true);
+    void loadFeed({ reset: true });
+  }, [loadFeed]);
+
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    void loadFeed({ reset: true });
+  }, [loadFeed]);
+
+  const handleEndReached = useCallback(() => {
+    if (isLoading || isLoadingMore || !hasMore || !nextCursor) {
+      return;
+    }
+    setIsLoadingMore(true);
+    void loadFeed({ reset: false, cursor: nextCursor });
+  }, [isLoading, isLoadingMore, hasMore, nextCursor, loadFeed]);
+
+  const handleOpenArticle = useCallback(
+    (article: ArticleFeedItem) => {
+      void markAsRead(article.id, Boolean(user));
+      void openArticleInBrowser(article.url);
+    },
+    [markAsRead, user],
+  );
+
+  const handleToggleFavorite = useCallback(
+    (article: ArticleFeedItem) => {
+      void toggleBookmark(article, Boolean(user));
+    },
+    [toggleBookmark, user],
+  );
+
+  const todayFormatted = new Intl.DateTimeFormat('pt-BR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(new Date());
+
+  return (
+    <SafeAreaView
+      edges={['top']}
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+    >
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.background,
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
+        <View style={styles.mastheadRow}>
+          <View>
+            <Text style={[styles.dateLabel, { color: colors.textSecondary }]}>
+              {todayFormatted}
+            </Text>
+            <Text style={[styles.brandTitle, { color: colors.text }]}>
+              DailyBrief
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.scopeSwitch,
+              {
+                backgroundColor: colors.surfaceMuted,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Pressable
+              onPress={() => setScope('all')}
+              accessibilityRole="button"
+              accessibilityLabel="Mostrar todas as notícias"
+              accessibilityState={{ selected: scope === 'all' }}
+              style={[
+                styles.scopeButton,
+                scope === 'all' && { backgroundColor: colors.surface },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.scopeText,
+                  {
+                    color:
+                      scope === 'all' ? colors.text : colors.textSecondary,
+                  },
+                ]}
+              >
+                Últimas
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setScope('followed')}
+              accessibilityRole="button"
+              accessibilityLabel="Mostrar apenas minhas editorias"
+              accessibilityState={{ selected: scope === 'followed' }}
+              style={[
+                styles.scopeButton,
+                scope === 'followed' && { backgroundColor: colors.surface },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.scopeText,
+                  {
+                    color:
+                      scope === 'followed' ? colors.text : colors.textSecondary,
+                  },
+                ]}
+              >
+                Seguindo
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+
+      {isLoading ? (
+        <StateView
+          mode="loading"
+          title="Atualizando manchetes"
+          description="Buscando as últimas publicações das fontes verificadas."
+        />
+      ) : error && articles.length === 0 ? (
+        <StateView
+          mode="error"
+          title="Não foi possível carregar o feed"
+          description={error}
+          actionLabel="Tentar novamente"
+          onAction={() => {
+            setIsLoading(true);
+            void loadFeed({ reset: true });
+          }}
+        />
+      ) : articles.length === 0 ? (
+        <StateView
+          mode="empty"
+          title={
+            scope === 'followed'
+              ? 'Nenhuma notícia nas editorias seguidas'
+              : 'Nenhuma notícia publicada ainda'
+          }
+          description={
+            scope === 'followed'
+              ? 'Selecione mais editorias na aba Perfil ou alterne para Últimas.'
+              : 'Execute a coleta de feeds ou aguarde a próxima atualização.'
+          }
+          actionLabel={scope === 'followed' ? 'Ver todas as notícias' : 'Atualizar'}
+          onAction={() => {
+            if (scope === 'followed') {
+              setScope('all');
+            } else {
+              setIsLoading(true);
+              void loadFeed({ reset: true });
+            }
+          }}
+        />
+      ) : (
+        <FlatList
+          data={articles}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <ArticleRow
+              article={item}
+              isFavorite={Boolean(favoriteIds[item.id])}
+              isRead={Boolean(readIds[item.id])}
+              onPress={handleOpenArticle}
+              onToggleFavorite={handleToggleFavorite}
+            />
+          )}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+            />
+          }
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            isLoadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : null
+          }
+          contentContainerStyle={styles.listContent}
+        />
+      )}
+    </SafeAreaView>
+  );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  mastheadRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  dateLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+    marginBottom: 2,
+  },
+  brandTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+  },
+  scopeSwitch: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    borderWidth: 1,
+    padding: 2,
+  },
+  scopeButton: {
+    minHeight: 40,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scopeText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  listContent: {
+    paddingBottom: 24,
+  },
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+});
