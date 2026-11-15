@@ -1,5 +1,5 @@
 import type { ArticleFeedItem, DailyQuoteResponse } from '@dailybrief/shared';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -52,9 +52,12 @@ export default function HomeScreen() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const articlesCountRef = useRef(0);
+  articlesCountRef.current = articles.length;
   const [dailyQuote, setDailyQuote] = useState<DailyQuoteResponse | null>(() =>
     getCachedDailyQuote(),
   );
@@ -135,6 +138,7 @@ export default function HomeScreen() {
         setError(message);
       } finally {
         setIsLoading(false);
+        setIsSyncing(false);
         setIsRefreshing(false);
         setIsLoadingMore(false);
       }
@@ -143,7 +147,11 @@ export default function HomeScreen() {
   );
 
   useEffect(() => {
-    setIsLoading(true);
+    if (articlesCountRef.current === 0) {
+      setIsLoading(true);
+    } else {
+      setIsSyncing(true);
+    }
     void loadFeed({ reset: true });
   }, [loadFeed]);
 
@@ -317,7 +325,24 @@ export default function HomeScreen() {
       {dailyQuote ? <DailyQuoteCard quote={dailyQuote} /> : null}
 
       <View style={styles.reelViewport} onLayout={handleFeedLayout}>
-        {isLoading ? (
+        {isSyncing && visibleArticles.length > 0 ? (
+          <View
+            style={[
+              styles.syncBanner,
+              {
+                backgroundColor: colors.surfaceMuted,
+                borderBottomColor: colors.border,
+              },
+            ]}
+          >
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={[styles.syncBannerText, { color: colors.textSecondary }]}>
+              Atualizando manchetes em segundo plano...
+            </Text>
+          </View>
+        ) : null}
+
+        {isLoading && visibleArticles.length === 0 ? (
           <StateView
             mode="loading"
             title="Atualizando manchetes"
@@ -473,6 +498,19 @@ const styles = StyleSheet.create({
   },
   reelViewport: {
     flex: 1,
+  },
+  syncBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  syncBannerText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   footerLoader: {
     paddingVertical: 20,

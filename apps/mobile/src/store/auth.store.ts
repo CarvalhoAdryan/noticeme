@@ -7,9 +7,13 @@ import {
 } from '../services/preferencesStorage';
 import {
   clearStoredAuthToken,
+  clearStoredAuthUser,
   getStoredAuthToken,
+  getStoredAuthUser,
   setStoredAuthToken,
+  setStoredAuthUser,
 } from '../services/tokenStorage';
+import { useBookmarksStore } from './bookmarks.store';
 import {
   fetchProfileApi,
   loginApi,
@@ -61,8 +65,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isHydrating: true });
 
     try {
-      const [storedToken, hiddenCategories] = await Promise.all([
+      const [storedToken, storedUser, hiddenCategories] = await Promise.all([
         getStoredAuthToken(),
+        getStoredAuthUser(),
         hiddenPromise,
       ]);
       set({ hiddenCategories });
@@ -73,14 +78,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       setApiAuthToken(storedToken);
+      if (storedUser) {
+        set({ token: storedToken, user: storedUser, isHydrating: false });
+      }
+
       const user = await fetchProfileApi();
+      await setStoredAuthUser(user);
       set({ token: storedToken, user, isHydrating: false });
     } catch (err: unknown) {
       if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-        await clearStoredAuthToken();
+        await Promise.all([clearStoredAuthToken(), clearStoredAuthUser()]);
+        setApiAuthToken(null);
+        set({ token: null, user: null, isHydrating: false });
+        return;
       }
-      setApiAuthToken(null);
-      set({ token: null, user: null, isHydrating: false });
+
+      set({ isHydrating: false });
     }
   },
 
@@ -89,7 +102,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const session = await loginApi(email, password);
       setApiAuthToken(session.accessToken);
-      await setStoredAuthToken(session.accessToken);
+      await Promise.all([
+        setStoredAuthToken(session.accessToken),
+        setStoredAuthUser(session.user),
+      ]);
       set({
         token: session.accessToken,
         user: session.user,
@@ -122,9 +138,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       }
 
+      const nextUser = { ...session.user, categories };
+      await setStoredAuthUser(nextUser);
       set({
         token: session.accessToken,
-        user: { ...session.user, categories },
+        user: nextUser,
         isSubmitting: false,
       });
       return true;
@@ -138,7 +156,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: () => {
     setApiAuthToken(null);
-    void clearStoredAuthToken();
+    void Promise.all([
+      clearStoredAuthToken(),
+      clearStoredAuthUser(),
+      useBookmarksStore.getState().clearLocalBookmarks(),
+    ]);
     set({ token: null, user: null, error: null });
   },
 
@@ -169,12 +191,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     try {
       const updated = await updateUserCategoriesApi(next);
-      set({
-        user: {
-          ...user,
-          categories: updated.map((c) => c.slug),
-        },
-      });
+      const nextUser = {
+        ...user,
+        categories: updated.map((c) => c.slug),
+      };
+      void setStoredAuthUser(nextUser);
+      set({ user: nextUser });
     } catch (err: unknown) {
       const msg =
         err instanceof Error
@@ -203,12 +225,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ user: { ...user, categories: nextFollowed } });
         try {
           const updated = await updateUserCategoriesApi(nextFollowed);
-          set({
-            user: {
-              ...user,
-              categories: updated.map((c) => c.slug),
-            },
-          });
+          const nextUser = {
+            ...user,
+            categories: updated.map((c) => c.slug),
+          };
+          void setStoredAuthUser(nextUser);
+          set({ user: nextUser });
         } catch {
           set({ user: { ...user, categories: previous } });
         }
@@ -223,6 +245,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isSubmitting: true, error: null });
     try {
       const updated = await updateProfileApi(displayName);
+      void setStoredAuthUser(updated);
       set({ user: updated, isSubmitting: false });
       return true;
     } catch (err: unknown) {
