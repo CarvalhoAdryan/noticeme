@@ -25,6 +25,7 @@ export interface RefreshDailyQuoteResult {
 
 const SAO_PAULO_TIMEZONE = 'America/Sao_Paulo';
 const SOURCE_DISPLAY_NAME = 'ZenQuotes';
+const AUTO_REFRESH_FAILURE_COOLDOWN_MS = 5 * 60_000;
 
 export function getSaoPauloDateString(now: Date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -49,6 +50,7 @@ export class DailyQuoteService {
     string,
     Promise<RefreshDailyQuoteResult>
   >();
+  private readonly lastFailedRefreshAt = new Map<string, number>();
 
   constructor(
     @Inject(PG_POOL) private readonly pool: Pool,
@@ -61,6 +63,15 @@ export class DailyQuoteService {
     const todayRow = await this.findByDate(today);
     if (todayRow) {
       return this.toResponse(todayRow, false);
+    }
+
+    const lastFailure = this.lastFailedRefreshAt.get(today) ?? 0;
+    const canTryRefresh =
+      now.getTime() - lastFailure >= AUTO_REFRESH_FAILURE_COOLDOWN_MS;
+
+    if (canTryRefresh) {
+      const refreshResult = await this.refreshDailyQuote(now);
+      return refreshResult.data;
     }
 
     const latestRow = await this.findLatest();
@@ -116,12 +127,14 @@ export class DailyQuoteService {
 
       const saved = await this.findByDate(today);
       if (saved) {
+        this.lastFailedRefreshAt.delete(today);
         return {
           status: 'created',
           data: this.toResponse(saved, false),
         };
       }
     } catch (err: unknown) {
+      this.lastFailedRefreshAt.set(today, Date.now());
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(
         `Falha ao atualizar citação do dia (${today}): ${msg}`,

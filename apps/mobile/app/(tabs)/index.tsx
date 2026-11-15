@@ -158,6 +158,11 @@ export default function HomeScreen() {
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
     void loadFeed({ reset: true });
+    void syncDailyQuote(true).then((quote) => {
+      if (quote) {
+        setDailyQuote(quote);
+      }
+    });
   }, [loadFeed]);
 
   const handleEndReached = useCallback(() => {

@@ -6,17 +6,33 @@ import {
   writeCachedDailyQuote,
 } from './dailyQuoteCache';
 
-let hasSyncedInSession = false;
+let lastSyncedDate: string | null = null;
 let inFlightSync: Promise<DailyQuoteResponse | null> | null = null;
+
+function getLocalDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 export function getCachedDailyQuote(): DailyQuoteResponse | null {
   return readCachedDailyQuote();
 }
 
-export async function syncDailyQuote(): Promise<DailyQuoteResponse | null> {
+export async function syncDailyQuote(
+  force = false,
+): Promise<DailyQuoteResponse | null> {
   const cached = readCachedDailyQuote();
+  const today = getLocalDateString();
 
-  if (hasSyncedInSession && cached) {
+  if (
+    !force &&
+    lastSyncedDate === today &&
+    cached &&
+    !cached.is_fallback
+  ) {
     return cached;
   }
 
@@ -27,7 +43,7 @@ export async function syncDailyQuote(): Promise<DailyQuoteResponse | null> {
   inFlightSync = (async () => {
     try {
       const fresh = await apiRequest<DailyQuoteResponse>('/daily-quote');
-      hasSyncedInSession = true;
+      lastSyncedDate = today;
 
       if (!areDailyQuotesEqual(cached, fresh)) {
         writeCachedDailyQuote(fresh);

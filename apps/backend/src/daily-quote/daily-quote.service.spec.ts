@@ -315,4 +315,31 @@ void describe('DailyQuoteService', () => {
       }
     }
   });
+
+  void it('9. Leitura pública: busca e grava automaticamente a citação do dia quando ainda não existe no banco', async () => {
+    const { pool, rows } = createInMemoryPool([
+      {
+        id: 'q1',
+        quote: 'Old quote',
+        author: 'Old Author',
+        display_date: '2026-11-14',
+        source: 'https://zenquotes.io',
+        created_at: '2026-11-14T03:10:00.000Z',
+      },
+    ]);
+    const { service: zen, getCallCount } = createMockZenQuotes(async () => ({
+      quote: 'Fresh today quote',
+      author: 'New Author',
+      source: 'https://zenquotes.io',
+    }));
+
+    const dailyQuoteService = new DailyQuoteService(pool, zen);
+    const result = await dailyQuoteService.getDailyQuote(fixedDay2);
+
+    assert.equal(getCallCount(), 1);
+    assert.equal(result.display_date, '2026-11-15');
+    assert.equal(result.quote, 'Fresh today quote');
+    assert.equal(result.is_fallback, false);
+    assert.equal(rows.length, 2);
+  });
 });
