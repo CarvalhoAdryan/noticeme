@@ -1,6 +1,6 @@
-# DailyBrief
+# NoticeME
 
-Monorepo do aplicativo agregador de notícias **DailyBrief** (`pnpm` workspaces + TypeScript).
+Monorepo do aplicativo agregador de notícias **NoticeME** (`pnpm` workspaces + TypeScript).
 
 ## Estrutura
 - `apps/backend` — API NestJS + scripts standalone de coleta e validação de feeds RSS
